@@ -2,6 +2,8 @@
 #include <QMC5883LCompass.h>
 
 QMC5883LCompass compass;
+Scheduler userScheduler;
+painlessMesh mesh;
 
 //Mesh network configuration
 #define MESH_NAME "Quest-Network"
@@ -36,41 +38,11 @@ QMC5883LCompass compass;
 #define FORWARD HIGH
 #define BACKWARD LOW
 
-//Functions
-void Ultrasoon_Check(); //Function which checks for obstacles (Output=BOOL:1=Sees something/2=Sees nothing)
-void Send_Message(); //Function which sends a message over the network (Input=STRING) 
-void NewConnectionCallback();
-void ChangedConnectionCallback();
-void NodeTimeAdjustedCallback();
-void NetworkUpdate();
-
-void setup() {
-    Serial.begin(115200);
-
-    compass.init();
-
-    //Mesh netwerk
-    mesh.setDebugMsgTypes(ERROR | STARTUP);
-    mesh.init(MESH_NAME, MESH_PASSWORD, &userScheduler, MESH_PORT);
-    mesh.onNewConnection(&newConnectionCallback);
-    mesh.onChangedConnections(&changedConnectionCallback);
-    mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
-
-    //Pins
-    pinMode(TRIG_PIN, OUTPUT);
-    pinMode(ECHO_PIN, INPUT);
-    pinMode(LEFT_SENSOR_PIN, INPUT);
-    pinMode(MIDDLE_SENSOR_PIN, INPUT);
-    pinMode(RIGHT_SENSOR_PIN, INPUT);
-    pinMode(PWM_B_PIN, OUTPUT);
-    pinMode(DIR_B_PIN, OUTPUT);
-    pinMode(PWM_A_PIN, OUTPUT);
-    pinMode(DIR_A_PIN, OUTPUT);
-}
-
-void loop() {
-SensorCheck();
-}
+int Speed = 220;
+int NormalAdjust = 30;
+int SharpAdjust = 60;
+int TurnLRDelay = 0;
+int TurnBackDelay = 90;
 
 void Send_Message(String Message) {
     mesh.sendBroadcast(Message);
@@ -92,86 +64,78 @@ void NodeTimeAdjustedCallback(int32_t offset) {
     Serial.printf("Time adjusted by %d\n", offset);
 }
 
-void Ultrasoon_Check() {
+int Ultrasoon_Check() {
     digitalWrite(TRIG_PIN, LOW);
     delayMicroseconds(TRIG_PULSE_DELAY_US);
     digitalWrite(TRIG_PIN, HIGH);
     delayMicroseconds(TRIG_PULSE_DURATION_US);
     digitalWrite(TRIG_PIN, LOW);
-    duration = pulseIn(ECHO_PIN, HIGH, PULSE_TIMEOUT_US);
-    distance = duration * 0.034 / 2;
+    int duration = pulseIn(ECHO_PIN, HIGH, PULSE_TIMEOUT_US);
+    int distance = duration * 0.034 / 2;
+    return distance;
 }
 
-class MotorControl {
-public:
-  int Speed
-  int NormalAdjust = 0;
-  int SharpAdjust = 0;
-  int TurnLRDelay = 0;
-  int TurnBackDelay = 0;
-  void Stop() {
-    analogWrite(PWM_A_PIN, LOW);
-    analogWrite(PWM_B_PIN, LOW);
-  }
-  void Left() {
-    digitalWrite(DIR_A_PIN, HIGH);
-    digitalWrite(DIR_B_PIN, HIGH);
-    analogWrite(PWM_A_PIN, Speed - NormalAdjust;
-    analogWrite(PWM_B_PIN, Speed - NormalAdjust;
-  }
-  void Right() {
-    digitalWrite(DIR_A_PIN, HIGH);
-    digitalWrite(DIR_B_PIN, HIGH);
-    analogWrite(PWM_A_PIN, Speed - NormalAdjust;
-    analogWrite(PWM_B_PIN, Speed - NormalAdjust;   
-  }
-  void SharpLeft() {
-    digitalWrite(DIR_A_PIN, HIGH);
-    digitalWrite(DIR_B_PIN, HIGH);
-    analogWrite(PWM_A_PIN, Speed - SharpAdjust;
-    analogWrite(PWM_B_PIN, Speed - SharpAdjust;
-  }
-  void SharpRight() {
-    digitalWrite(DIR_A_PIN, HIGH);
-    digitalWrite(DIR_B_PIN, HIGH);
-    analogWrite(PWM_A_PIN, Speed - SharpAdjust;
-    analogWrite(PWM_B_PIN, Speed - SharpAdjust;
-  }
-  void Forward() {
-    digitalWrite(DIR_A_PIN, HIGH);
-    digitalWrite(DIR_B_PIN, HIGH);
-    analogWrite(PWM_A_PIN, Speed;
-    analogWrite(PWM_B_PIN, Speed;
-  }
-  void TurnLeft() {
-    digitalWrite(DIR_A_PIN, LOW);
-    digitalWrite(DIR_B_PIN, HIGH);
-    analogWrite(PWM_A_PIN, Speed;
-    analogWrite(PWM_B_PIN, Speed;
-    delay(TurnLRDelay);
-    digitalWrite(DIR_A_PIN, LOW);
-    digitalWrite(DIR_B_PIN, LOW);
-  }
-  void TurnRight() {
-    digitalWrite(DIR_A_PIN, HIGH);
-    digitalWrite(DIR_B_PIN, LOW);
-    analogWrite(PWM_A_PIN, Speed;
-    analogWrite(PWM_B_PIN, Speed;
-    delay(TurnLRDelay);
-    digitalWrite(DIR_A_PIN, LOW);
-    digitalWrite(DIR_B_PIN, LOW);
-  }
-  void TurnBack() {
-    digitalWrite(DIR_A_PIN, HIGH);
-    digitalWrite(DIR_B_PIN, LOW);
-    analogWrite(PWM_A_PIN, Speed;
-    analogWrite(PWM_B_PIN, Speed;
-    delay(TurnBackDelay);
-    digitalWrite(DIR_A_PIN, LOW);
-    digitalWrite(DIR_B_PIN, LOW);    
-  }
-};
-MotorControl MC;
+void Stop() {
+  analogWrite(PWM_A_PIN, LOW);
+  analogWrite(PWM_B_PIN, LOW);
+}
+void Left() {
+  digitalWrite(DIR_A_PIN, HIGH);
+  digitalWrite(DIR_B_PIN, HIGH);
+  analogWrite(PWM_A_PIN, Speed - NormalAdjust);
+  analogWrite(PWM_B_PIN, Speed - NormalAdjust);
+}
+void Right() {
+  digitalWrite(DIR_A_PIN, HIGH);
+  digitalWrite(DIR_B_PIN, HIGH);
+  analogWrite(PWM_A_PIN, Speed - NormalAdjust);
+  analogWrite(PWM_B_PIN, Speed - NormalAdjust);   
+}
+void SharpLeft() {
+  digitalWrite(DIR_A_PIN, HIGH);
+  digitalWrite(DIR_B_PIN, HIGH);
+  analogWrite(PWM_A_PIN, Speed - SharpAdjust);
+  analogWrite(PWM_B_PIN, Speed - SharpAdjust);
+}
+void SharpRight() {
+  digitalWrite(DIR_A_PIN, HIGH);
+  digitalWrite(DIR_B_PIN, HIGH);
+  analogWrite(PWM_A_PIN, Speed - SharpAdjust);
+  analogWrite(PWM_B_PIN, Speed - SharpAdjust);
+}
+void Forward() {
+  digitalWrite(DIR_A_PIN, HIGH);
+  digitalWrite(DIR_B_PIN, HIGH);
+  analogWrite(PWM_A_PIN, Speed);
+  analogWrite(PWM_B_PIN, Speed);
+}
+void TurnLeft() {
+  digitalWrite(DIR_A_PIN, LOW);
+  digitalWrite(DIR_B_PIN, HIGH);
+  analogWrite(PWM_A_PIN, Speed);
+  analogWrite(PWM_B_PIN, Speed);
+  delay(TurnLRDelay);
+  digitalWrite(DIR_A_PIN, LOW);
+  digitalWrite(DIR_B_PIN, LOW);
+}
+void TurnRight() {
+  digitalWrite(DIR_A_PIN, HIGH);
+  digitalWrite(DIR_B_PIN, LOW);
+  analogWrite(PWM_A_PIN, Speed);
+  analogWrite(PWM_B_PIN, Speed);
+  delay(TurnLRDelay);
+  digitalWrite(DIR_A_PIN, LOW);
+  digitalWrite(DIR_B_PIN, LOW);
+}
+void TurnBack() {
+  digitalWrite(DIR_A_PIN, HIGH);
+  digitalWrite(DIR_B_PIN, LOW);
+  analogWrite(PWM_A_PIN, Speed);
+  analogWrite(PWM_B_PIN, Speed);
+  delay(TurnBackDelay);
+  digitalWrite(DIR_A_PIN, LOW);
+  digitalWrite(DIR_B_PIN, LOW);    
+}
 
 void SensorCheck() {
     int s1 = digitalRead(LEFT_SENSOR_PIN);
@@ -179,32 +143,69 @@ void SensorCheck() {
     int s3 = digitalRead(RIGHT_SENSOR_PIN);
     String sData = String(s1) + String(s2) + String(s3);
     int INTsData = sData.toInt();
-    Switch(INTsData) {
-      Case 0:   //000
-        MC.Stop();
-        Break;
-      Case 1;   //001
-        MC.SharpRight();
-        Break;
-      Case 10:  //010
-        MC.Forward();
-        Break;
-      Case 11:  //011
-        MC.Right();
-        Break;
-      Case 100: //100
-        MC.ScharpLeft();
-        Break;
-      Case 101: //101
+    switch(INTsData) {
+      case 0:   //000
+        Stop();
+        break;
+      case 1:   //001
+        SharpRight();
+        break;
+      case 10:  //010
+        Forward();
+        break;
+      case 11:  //011
+        Right();
+        break;
+      case 100: //100
+        SharpLeft();
+        break;
+      case 101: //101
         //Intersections: MC.TurnLeft or MC.TurnRight or MC.TurnBack
-        Break;
-      Case 110: //110
-        MC.Left();
-        Break;
-      Case 111: //111
+        Stop();
+        break;
+      case 110: //110
+        Left();
+        break;
+      case 111: //111
         //Intersections: MC.TurnLeft or MC.TurnRight or MC.TurnBack
-        Break;
+        Stop();
+        break;
     }
 }
 
+void setup() {
+    Serial.begin(115200);
+    delay(500);
 
+    Serial.printf("Initiate");
+
+    compass.init();
+
+    //Mesh netwerk
+    mesh.setDebugMsgTypes(ERROR | STARTUP);
+    mesh.init(MESH_NAME, MESH_PASSWORD, &userScheduler, MESH_PORT);
+    mesh.onNewConnection(&NewConnectionCallback);
+    mesh.onChangedConnections(&ChangedConnectionCallback);
+    mesh.onNodeTimeAdjusted(&NodeTimeAdjustedCallback);
+
+    //Pins
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+    pinMode(LEFT_SENSOR_PIN, INPUT);
+    pinMode(MIDDLE_SENSOR_PIN, INPUT);
+    pinMode(RIGHT_SENSOR_PIN, INPUT);
+    pinMode(PWM_B_PIN, OUTPUT);
+    pinMode(DIR_B_PIN, OUTPUT);
+    pinMode(PWM_A_PIN, OUTPUT);
+    pinMode(DIR_A_PIN, OUTPUT);
+}
+
+void loop() {
+  NetworkUpdate();
+  SensorCheck();
+  int Distance = Ultrasoon_Check();
+  if (Distance < DISTANCE_THRESHOLD_CM) {
+  Stop();
+  }
+  delay(SENSOR_READ_DELAY_MS);
+}
