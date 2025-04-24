@@ -6,41 +6,43 @@ Scheduler userScheduler;
 painlessMesh mesh;
 
 //Mesh network configuration
-#define MESH_NAME "Quest-Network"
+#define MESH_NAME     "Quest-Network"
 #define MESH_PASSWORD "Quest-Password"
-#define MESH_PORT 5555
+#define MESH_PORT      5555
 //Ultrasoon
 #define TRIG_PIN 20
 #define ECHO_PIN 19
 //Sensors
-#define LEFT_SENSOR_PIN 17
+#define LEFT_SENSOR_PIN   17
 #define MIDDLE_SENSOR_PIN 23
-#define RIGHT_SENSOR_PIN 18
+#define RIGHT_SENSOR_PIN  18
 //Motors
-#define PWM_B_PIN 11
-#define DIR_B_PIN 4
-#define PWM_A_PIN 3
-#define DIR_A_PIN 2
+#define LEFT_MOTOR      3  
+#define LEFT_MOTOR_DIR  2   
+#define RIGHT_MOTOR     11  
+#define RIGHT_MOTOR_DIR 4
+//FORWARD OR BACKWARD indication
+#define FORWARD   LOW
+#define BACKWARD  HIGH
 // Motor control parameters
-#define MOTOR_SPEED 220  //Max 255, original 220
+#define MOTOR_SPEED           220  //Max 255, original 220
 #define TURN_SPEED_ADJUSTMENT 30
 // Sensor and control parameters
-#define DISTANCE_THRESHOLD_CM 20
-#define ENCODER_MAX_COUNT 45
-#define ENCODER_RESET_COUNT 3
-#define ENCODER_RESET_INTERVAL_MS 300
-#define DELAY_AFTER_MOVE_MS 200
-#define SENSOR_READ_DELAY_MS 0  //Note: Gianni has turn off delay it was 10. Its better in following line
-#define TRIG_PULSE_DURATION_US 10
-#define TRIG_PULSE_DELAY_US 2
-#define PULSE_TIMEOUT_US 30000
-//FORWARD OR BACKWARD indication
-#define FORWARD HIGH
-#define BACKWARD LOW
+#define DISTANCE_THRESHOLD_CM       20
+#define ENCODER_MAX_COUNT           45
+#define ENCODER_RESET_COUNT         3
+#define ENCODER_RESET_INTERVAL_MS   300
+#define DELAY_AFTER_MOVE_MS         200
+#define SENSOR_READ_DELAY_MS        0  //Note: Gianni has turn off delay it was 10. Its better in following line
+#define TRIG_PULSE_DURATION_US      10
+#define TRIG_PULSE_DELAY_US         2
+#define PULSE_TIMEOUT_US            30000
+
+
 
 int Speed = 220;
-int NormalAdjust = 30;
-int SharpAdjust = 60;
+int NormalAdjust = 660;
+int SharpAdjust = 660;
 int TurnLRDelay = 0;
 int TurnBackDelay = 90;
 
@@ -76,75 +78,75 @@ int Ultrasoon_Check() {
 }
 
 void Stop() {
-  analogWrite(PWM_A_PIN, LOW);
-  analogWrite(PWM_B_PIN, LOW);
+  analogWrite(RIGHT_MOTOR, LOW);
+  analogWrite(LEFT_MOTOR, LOW);
 }
 void Left() {
-  digitalWrite(DIR_A_PIN, HIGH);
-  digitalWrite(DIR_B_PIN, HIGH);
-  analogWrite(PWM_A_PIN, Speed - NormalAdjust);
-  analogWrite(PWM_B_PIN, Speed - NormalAdjust);
+  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
+  digitalWrite(LEFT_MOTOR_DIR, FORWARD);
+  analogWrite(RIGHT_MOTOR, Speed);
+  analogWrite(LEFT_MOTOR, Speed - NormalAdjust);
 }
 void Right() {
-  digitalWrite(DIR_A_PIN, HIGH);
-  digitalWrite(DIR_B_PIN, HIGH);
-  analogWrite(PWM_A_PIN, Speed - NormalAdjust);
-  analogWrite(PWM_B_PIN, Speed - NormalAdjust);
+  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
+  digitalWrite(LEFT_MOTOR_DIR, FORWARD);
+  analogWrite(RIGHT_MOTOR, Speed - NormalAdjust);
+  analogWrite(LEFT_MOTOR, Speed);
 }
 void SharpLeft() {
-  digitalWrite(DIR_A_PIN, HIGH);
-  digitalWrite(DIR_B_PIN, HIGH);
-  analogWrite(PWM_A_PIN, Speed - SharpAdjust);
-  analogWrite(PWM_B_PIN, Speed - SharpAdjust);
+  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
+  digitalWrite(LEFT_MOTOR_DIR, FORWARD);
+  analogWrite(RIGHT_MOTOR, Speed);
+  analogWrite(LEFT_MOTOR, Speed - SharpAdjust);
 }
 void SharpRight() {
-  digitalWrite(DIR_A_PIN, HIGH);
-  digitalWrite(DIR_B_PIN, HIGH);
-  analogWrite(PWM_A_PIN, Speed - SharpAdjust);
-  analogWrite(PWM_B_PIN, Speed - SharpAdjust);
+  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
+  digitalWrite(LEFT_MOTOR_DIR, FORWARD);
+  analogWrite(RIGHT_MOTOR, Speed - SharpAdjust);
+  analogWrite(LEFT_MOTOR, Speed);
 }
 void Forward() {
-  digitalWrite(DIR_A_PIN, HIGH);
-  digitalWrite(DIR_B_PIN, HIGH);
-  analogWrite(PWM_A_PIN, Speed);
-  analogWrite(PWM_B_PIN, Speed);
+  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
+  digitalWrite(LEFT_MOTOR_DIR, FORWARD);
+  analogWrite(RIGHT_MOTOR, Speed);
+  analogWrite(LEFT_MOTOR, Speed);
 }
 void TurnLeft() {
-  digitalWrite(DIR_A_PIN, LOW);
-  digitalWrite(DIR_B_PIN, HIGH);
-  analogWrite(PWM_A_PIN, Speed);
-  analogWrite(PWM_B_PIN, Speed);
+  digitalWrite(RIGHT_MOTOR_DIR, LOW);
+  digitalWrite(LEFT_MOTOR_DIR, HIGH);
+  analogWrite(RIGHT_MOTOR, Speed);
+  analogWrite(LEFT_MOTOR, Speed);
   delay(TurnLRDelay);
-  digitalWrite(DIR_A_PIN, LOW);
-  digitalWrite(DIR_B_PIN, LOW);
+  digitalWrite(RIGHT_MOTOR_DIR, LOW);
+  digitalWrite(LEFT_MOTOR_DIR, LOW);
 }
 void TurnRight() {
-  digitalWrite(DIR_A_PIN, HIGH);
-  digitalWrite(DIR_B_PIN, LOW);
-  analogWrite(PWM_A_PIN, Speed);
-  analogWrite(PWM_B_PIN, Speed);
+  digitalWrite(RIGHT_MOTOR_DIR, HIGH);
+  digitalWrite(LEFT_MOTOR_DIR, LOW);
+  analogWrite(RIGHT_MOTOR, Speed);
+  analogWrite(LEFT_MOTOR, Speed);
   delay(TurnLRDelay);
-  digitalWrite(DIR_A_PIN, LOW);
-  digitalWrite(DIR_B_PIN, LOW);
+  digitalWrite(RIGHT_MOTOR_DIR, LOW);
+  digitalWrite(LEFT_MOTOR_DIR, LOW);
 }
 void TurnBack() {
-  digitalWrite(DIR_A_PIN, HIGH);
-  digitalWrite(DIR_B_PIN, LOW);
-  analogWrite(PWM_A_PIN, Speed);
-  analogWrite(PWM_B_PIN, Speed);
+  digitalWrite(RIGHT_MOTOR_DIR, HIGH);
+  digitalWrite(LEFT_MOTOR_DIR, LOW);
+  analogWrite(RIGHT_MOTOR, Speed);
+  analogWrite(LEFT_MOTOR, Speed);
   delay(TurnBackDelay);
-  digitalWrite(DIR_A_PIN, LOW);
-  digitalWrite(DIR_B_PIN, LOW);
+  digitalWrite(RIGHT_MOTOR_DIR, LOW);
+  digitalWrite(LEFT_MOTOR_DIR, LOW);
 }
 
 void SensorCheck() {
-  int s1 = digitalRead(LEFT_SENSOR_PIN);
-  int s2 = digitalRead(MIDDLE_SENSOR_PIN);
-  int s3 = digitalRead(RIGHT_SENSOR_PIN);
+  int s1 = !digitalRead(LEFT_SENSOR_PIN);
+  int s2 = !digitalRead(MIDDLE_SENSOR_PIN);
+  int s3 = !digitalRead(RIGHT_SENSOR_PIN);
   String sData = String(s1) + String(s2) + String(s3);
-    Serial.println(s1);
-    Serial.println(s2);
-    Serial.println(s3); 
+    //Serial.println(s1);
+    //Serial.println(s2);
+    //Serial.println(s3); 
   Serial.println(sData);
   int INTsData = sData.toInt();
   switch (INTsData) {
@@ -153,15 +155,19 @@ void SensorCheck() {
       break;
     case 1:  //001
       SharpRight();
+      Serial.println("scherp rechts");
       break;
     case 10:  //010
       Forward();
+      Serial.println("rechtdoor");
       break;
     case 11:  //011
       Right();
+      Serial.println("rechts");
       break;
     case 100:  //100
       SharpLeft();
+      Serial.println("scherp links");
       break;
     case 101:  //101
       //Intersections: MC.TurnLeft or MC.TurnRight or MC.TurnBack
@@ -169,6 +175,7 @@ void SensorCheck() {
       break;
     case 110:  //110
       Left();
+      Serial.println("links");
       break;
     case 111:  //111
       //Intersections: MC.TurnLeft or MC.TurnRight or MC.TurnBack
@@ -198,14 +205,14 @@ void setup() {
   pinMode(LEFT_SENSOR_PIN, INPUT);
   pinMode(MIDDLE_SENSOR_PIN, INPUT);
   pinMode(RIGHT_SENSOR_PIN, INPUT);
-  pinMode(PWM_B_PIN, OUTPUT);
-  pinMode(DIR_B_PIN, OUTPUT);
-  pinMode(PWM_A_PIN, OUTPUT);
-  pinMode(DIR_A_PIN, OUTPUT);
+  pinMode(LEFT_MOTOR, OUTPUT);
+  pinMode(LEFT_MOTOR_DIR, OUTPUT);
+  pinMode(RIGHT_MOTOR, OUTPUT);
+  pinMode(RIGHT_MOTOR_DIR, OUTPUT);
 }
 
 void loop() {
-  NetworkUpdate();
+  //NetworkUpdate();
   SensorCheck();
   int Distance = Ultrasoon_Check();
   if (Distance < DISTANCE_THRESHOLD_CM) {
