@@ -3,7 +3,7 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-bool DebugPrint = 1;
+bool DebugPrint = 0;
 
 // Compass
 QMC5883LCompass compass;
@@ -45,7 +45,6 @@ int NormalAdjust = Speed;
 #define TRIG_PULSE_DURATION_US 10
 #define TRIG_PULSE_DELAY_US 2
 #define PULSE_TIMEOUT_US 30000
-#define SENSOR_READ_DELAY_MS 0
 
 // RFID
 #define TAG_1 "F7910A3E"
@@ -55,17 +54,16 @@ int NormalAdjust = Speed;
 
 #define DEBUG_RFID true
 #define DEBUG_RFID_CHECK true
+#define SCK_PIN   13    // Serial Clock (SCK)
+#define MISO_PIN  12    // Master In Slave Out (MISO)
+#define MOSI_PIN  8     // Master Out Slave In (MOSI)
+#define SS_PIN    10    // Slave Select (SS)
+#define RST_PIN   5
 
-#define SS_PIN 10
-#define RST_PIN 5
 
-#define ESP32_RED    0
-#define ESP32_GREEN  1
-#define ESP32_BLUE   2
-
-#define RED_PIN      14
-#define GREEN_PIN    15
-#define BLUE_PIN     16
+#define ESP_RED_PIN      14
+#define ESP_GREEN_PIN    15
+#define ESP_BLUE_PIN     16
 
 #define ESP32_LED_RED        0
 #define ESP32_LED_ORANGE     1
@@ -115,18 +113,14 @@ void setup() {
   ledcSetup(RIGHT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
   ledcAttachPin(RIGHT_MOTOR, RIGHT_PWM_CHANNEL);
 
-  SPI.begin();                          // init SPI bus
+
+  SPI.begin(SCK_PIN, MISO_PIN , MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
   rfid.PCD_Init();                      // init MFRC522
 
-  // ledcSetup(ESP32_RED,   5000, 8);
-  // ledcSetup(ESP32_GREEN, 5000, 8);
-  // ledcSetup(ESP32_BLUE,  5000, 8);
-
-  // ledcAttachPin(RED_PIN,   ESP32_RED);
-  // ledcAttachPin(GREEN_PIN, ESP32_GREEN);
-  // ledcAttachPin(BLUE_PIN,  ESP32_BLUE);
+  pinMode(ESP_RED_PIN, OUTPUT);
+  pinMode(ESP_GREEN_PIN, OUTPUT);
+  pinMode(ESP_BLUE_PIN, OUTPUT);
 }
-
 // --- Motor functies ---
 void Stop() {
   ledcWrite(LEFT_PWM_CHANNEL, 0);
@@ -218,23 +212,23 @@ String readRFIDReader() {
 
 int uidCheck(String uidStr) {
   String debugPrint = "Tag onbekend"; 
-  int returnValue = 0; 
+  int returnValue = 1; 
 
   if (uidStr == TAG_1) {
     debugPrint = "Tag 1";
-    returnValue = 1;
+    returnValue = 2;
   } 
   else if (uidStr == TAG_2) {
     debugPrint = "Tag 2";
-    returnValue = 2;
+    returnValue = 3;
   } 
   else if (uidStr == TAG_3) {
     debugPrint = "Tag 3";
-    returnValue = 3;
+    returnValue = 4;
   } 
   else if (uidStr == TAG_4) {
     debugPrint = "Tag 4";
-    returnValue = 4;
+    returnValue = 5;
   }
 
   // Debug prints  
@@ -248,83 +242,76 @@ int uidCheck(String uidStr) {
   return returnValue;
 }
 
-void ESP32LedCrontrol(int position) {
-  switch(position) {
-    case 0: // Red
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 255);
-      ledcWrite(ESP32_BLUE,  255);
-      break;
-    case 1: // Orange
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 100);
-      ledcWrite(ESP32_BLUE,  255);
-      break;
-    case 2: // Yellow
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  255);
-      break;
-    case 3: // Green
-      ledcWrite(ESP32_RED,   255);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  255);
-      break;
-    case 4: // Light Green
-      ledcWrite(ESP32_RED,   200);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  200);
-      break;
-    case 5: // Cyan
-      ledcWrite(ESP32_RED,   255);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  0);
-      break;
-    case 6: // Blue
-      ledcWrite(ESP32_RED,   255);
-      ledcWrite(ESP32_GREEN, 255);
-      ledcWrite(ESP32_BLUE,  0);
-      break;
-    case 7: // Purple
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 255);
-      ledcWrite(ESP32_BLUE,  0);
-      break;
-    case 8: // Pink
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 200);
-      ledcWrite(ESP32_BLUE,  100);
-      break;
-    case 9: // White
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  0);
-      break;
-    default: // OFF  
-      ledcWrite(ESP32_RED,   255);
-      ledcWrite(ESP32_GREEN, 255);
-      ledcWrite(ESP32_BLUE,  255);
-      break;
-  }
+void ESP32LedCrontrol(int color ) {
+ switch (color) {
+  case 0: // UIT
+    digitalWrite(ESP_RED_PIN, HIGH);
+    digitalWrite(ESP_GREEN_PIN, HIGH);
+    digitalWrite(ESP_BLUE_PIN, HIGH);
+    break;
+
+  case 1: // ROOD
+    digitalWrite(ESP_RED_PIN, LOW);
+    digitalWrite(ESP_GREEN_PIN, HIGH);
+    digitalWrite(ESP_BLUE_PIN, HIGH);
+    break;
+
+  case 2: // GROEN
+    digitalWrite(ESP_RED_PIN, HIGH);
+    digitalWrite(ESP_GREEN_PIN, LOW);
+    digitalWrite(ESP_BLUE_PIN, HIGH);
+    break;
+
+  case 3: // BLAUW
+    digitalWrite(ESP_RED_PIN, HIGH);
+    digitalWrite(ESP_GREEN_PIN, HIGH);
+    digitalWrite(ESP_BLUE_PIN, LOW);
+    break;
+
+  case 4: // GEEL (rood + groen)
+    digitalWrite(ESP_RED_PIN, LOW);
+    digitalWrite(ESP_GREEN_PIN, LOW);
+    digitalWrite(ESP_BLUE_PIN, HIGH);
+    break;
+
+  case 5: // MAGENTA (rood + blauw)
+    digitalWrite(ESP_RED_PIN, LOW);
+    digitalWrite(ESP_GREEN_PIN, HIGH);
+    digitalWrite(ESP_BLUE_PIN, LOW);
+    break;
+
+  case 6: // CYAAN (groen + blauw)
+    digitalWrite(ESP_RED_PIN, HIGH);
+    digitalWrite(ESP_GREEN_PIN, LOW);
+    digitalWrite(ESP_BLUE_PIN, LOW);
+    break;
+
+  case 7: // WIT (rood + groen + blauw)
+    digitalWrite(ESP_RED_PIN, LOW);
+    digitalWrite(ESP_GREEN_PIN, LOW);
+    digitalWrite(ESP_BLUE_PIN, LOW);
+    break;
+ }
 }
+
 
 void loop() {
   int Position = 0;
 
  // mesh.update();
-  // String uid = readRFIDReader();
-  // if (uid != "")                        // if their is a uid
-  // {                     
-  //   Position = uidCheck(uid);           // Get position value from uidCheck
-  //   //ESP32LedCrontrol(Position);
-  //   Stop();
-  //   delay(5000);
-  //   //ESP32LedCrontrol(6969);
-  // }
+  String uid = readRFIDReader();
+  if (uid != "")                        // if their is a uid
+  {                     
+    Position = uidCheck(uid);           // Get position value from uidCheck
+    ESP32LedCrontrol(Position);
+    Stop();
+    delay(5000);
+    ESP32LedCrontrol(6969);
+  }
 
   SensorCheck();
   if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
     Stop();
   }
-  delay(SENSOR_READ_DELAY_MS);
+
 }
