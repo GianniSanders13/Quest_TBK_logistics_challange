@@ -25,8 +25,8 @@ painlessMesh mesh;
 #define RIGHT_MOTOR 11
 #define RIGHT_MOTOR_DIR 4
 
-#define FORWARD LOW
-#define BACKWARD HIGH
+#define FORWARD HIGH
+#define BACKWARD LOW
 
 // PWM instellingen
 #define PWM_FREQ 1000
@@ -44,7 +44,7 @@ int NormalAdjust = Speed;
 #define SENSOR_READ_DELAY_MS 0
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(2000000);
   delay(1000);
   Serial.println("Initiate");
 
@@ -127,7 +127,7 @@ void SensorCheck() {
     case 0: Forward(); break;
     case 1:
       Right();
-      Serial.println("scherp rechts");
+      Serial.println("Rechts");
       break;
     case 10:
       Left();
