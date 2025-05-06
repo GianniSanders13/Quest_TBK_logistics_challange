@@ -1,10 +1,12 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
+
 #define TAG_1 "F7910A3E"
 #define TAG_2 "32920A3E"
 #define TAG_3 "936E0A3E"
 #define TAG_4 "536E0A3E"
+
 
 #define DEBUG_RFID true
 #define DEBUG_RFID_CHECK true
@@ -59,6 +61,7 @@ void loop() {
   if (uid != "")                        // if their is a uid
   {                     
     position = uidCheck(uid);           // Get position value from uidCheck
+
     ESP32LedCrontrol(position);
   }
   
@@ -113,6 +116,7 @@ int uidCheck(String uidStr) {
   }
 
   // Debug prints  
+
   if (DEBUG_RFID_CHECK) {
     Serial.print("Tag: ");
     Serial.print(debugPrint);
@@ -182,4 +186,3 @@ void ESP32LedCrontrol(int position) {
       break;
   }
 }
-
