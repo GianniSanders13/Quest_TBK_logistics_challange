@@ -1,10 +1,11 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-#define TAG_1 "A22D3A51"
-#define TAG_2 "A2341A51"
-#define TAG_3 "A28D4A51"
-#define TAG_4 "608ED155"
+
+#define TAG_1 "F7910A3E"
+#define TAG_2 "32920A3E"
+#define TAG_3 "936E0A3E"
+#define TAG_4 "536E0A3E"
 
 
 #define DEBUG_RFID true
@@ -12,6 +13,28 @@
 
 #define SS_PIN 10
 #define RST_PIN 5
+
+#define ESP32_RED    0
+#define ESP32_GREEN  1
+#define ESP32_BLUE   2
+
+#define RED_PIN      14
+#define GREEN_PIN    15
+#define BLUE_PIN     16
+
+
+// Color position defines
+#define ESP32_LED_RED        0
+#define ESP32_LED_ORANGE     1
+#define ESP32_LED_YELLOW     2
+#define ESP32_LED_GREEN      3
+#define ESP32_LED_LIGHTGREEN 4
+#define ESP32_LED_CYAN       5
+#define ESP32_LED_BLUE       6
+#define ESP32_LED_PURPLE     7
+#define ESP32_LED_PINK       8
+#define ESP32_LED_WHITE      9
+#define ESP32_LED_OFF        10
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 
@@ -21,6 +44,14 @@ void setup()
 
   SPI.begin();                          // init SPI bus
   rfid.PCD_Init();                      // init MFRC522
+
+  ledcSetup(ESP32_RED,   5000, 8);
+  ledcSetup(ESP32_GREEN, 5000, 8);
+  ledcSetup(ESP32_BLUE,  5000, 8);
+
+  ledcAttachPin(RED_PIN,   ESP32_RED);
+  ledcAttachPin(GREEN_PIN, ESP32_GREEN);
+  ledcAttachPin(BLUE_PIN,  ESP32_BLUE);
 }
 
 void loop() {
@@ -30,6 +61,8 @@ void loop() {
   if (uid != "")                        // if their is a uid
   {                     
     position = uidCheck(uid);           // Get position value from uidCheck
+
+    ESP32LedCrontrol(position);
   }
   
 }
@@ -83,8 +116,8 @@ int uidCheck(String uidStr) {
   }
 
   // Debug prints  
-  if (DEBUG_RFID_CHECK)
-  {
+
+  if (DEBUG_RFID_CHECK) {
     Serial.print("Tag: ");
     Serial.print(debugPrint);
     Serial.print(", Position Value: ");
@@ -94,3 +127,62 @@ int uidCheck(String uidStr) {
   return returnValue;
 }
 
+void ESP32LedCrontrol(int position) {
+  switch(position) {
+    case 0: // Red
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 255);
+      ledcWrite(ESP32_BLUE,  255);
+      break;
+    case 1: // Orange
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 100);
+      ledcWrite(ESP32_BLUE,  255);
+      break;
+    case 2: // Yellow
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  255);
+      break;
+    case 3: // Green
+      ledcWrite(ESP32_RED,   255);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  255);
+      break;
+    case 4: // Light Green
+      ledcWrite(ESP32_RED,   200);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  200);
+      break;
+    case 5: // Cyan
+      ledcWrite(ESP32_RED,   255);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  0);
+      break;
+    case 6: // Blue
+      ledcWrite(ESP32_RED,   255);
+      ledcWrite(ESP32_GREEN, 255);
+      ledcWrite(ESP32_BLUE,  0);
+      break;
+    case 7: // Purple
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 255);
+      ledcWrite(ESP32_BLUE,  0);
+      break;
+    case 8: // Pink
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 200);
+      ledcWrite(ESP32_BLUE,  100);
+      break;
+    case 9: // White
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  0);
+      break;
+    default: // OFF
+      ledcWrite(ESP32_RED,   255);
+      ledcWrite(ESP32_GREEN, 255);
+      ledcWrite(ESP32_BLUE,  255);
+      break;
+  }
+}
