@@ -113,8 +113,7 @@ int uidCheck(String uidStr) {
   }
 
   // Debug prints  
-  if (DEBUG_RFID_CHECK)
-  {
+  if (DEBUG_RFID_CHECK) {
     Serial.print("Tag: ");
     Serial.print(debugPrint);
     Serial.print(", Position Value: ");
@@ -131,52 +130,52 @@ void ESP32LedCrontrol(int position) {
       ledcWrite(ESP32_GREEN, 255);
       ledcWrite(ESP32_BLUE,  255);
       break;
-    case 1: // Green
-      ledcWrite(ESP32_RED,   255);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  255);
-      break;
-    case 2: // Blue
-      ledcWrite(ESP32_RED,   255);
-      ledcWrite(ESP32_GREEN, 255);
-      ledcWrite(ESP32_BLUE,  0);
-      break;
-    case 3: // Yellow (Red + Green)
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  255);
-      break;
-    case 4: // Purple (Red + Blue)
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 255);
-      ledcWrite(ESP32_BLUE,  0);
-      break;
-    case 5: // Cyan (Green + Blue)
-      ledcWrite(ESP32_RED,   255);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  0);
-      break;
-    case 6: // White (Red + Green + Blue)
-      ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 0);
-      ledcWrite(ESP32_BLUE,  0);
-      break;
-    case 7: // Orange (mostly Red + some Green)
+    case 1: // Orange
       ledcWrite(ESP32_RED,   0);
       ledcWrite(ESP32_GREEN, 100);
       ledcWrite(ESP32_BLUE,  255);
       break;
-    case 8: // Pink (Red + a bit of Blue)
+    case 2: // Yellow
       ledcWrite(ESP32_RED,   0);
-      ledcWrite(ESP32_GREEN, 200);
-      ledcWrite(ESP32_BLUE,  100);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  255);
       break;
-    case 9: // Light Green
+    case 3: // Green
+      ledcWrite(ESP32_RED,   255);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  255);
+      break;
+    case 4: // Light Green
       ledcWrite(ESP32_RED,   200);
       ledcWrite(ESP32_GREEN, 0);
       ledcWrite(ESP32_BLUE,  200);
       break;
-    default: // OFF (all colors off)
+    case 5: // Cyan
+      ledcWrite(ESP32_RED,   255);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  0);
+      break;
+    case 6: // Blue
+      ledcWrite(ESP32_RED,   255);
+      ledcWrite(ESP32_GREEN, 255);
+      ledcWrite(ESP32_BLUE,  0);
+      break;
+    case 7: // Purple
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 255);
+      ledcWrite(ESP32_BLUE,  0);
+      break;
+    case 8: // Pink
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 200);
+      ledcWrite(ESP32_BLUE,  100);
+      break;
+    case 9: // White
+      ledcWrite(ESP32_RED,   0);
+      ledcWrite(ESP32_GREEN, 0);
+      ledcWrite(ESP32_BLUE,  0);
+      break;
+    default: // OFF
       ledcWrite(ESP32_RED,   255);
       ledcWrite(ESP32_GREEN, 255);
       ledcWrite(ESP32_BLUE,  255);
