@@ -54,35 +54,39 @@ int NormalAdjust = Speed;
 
 #define DEBUG_RFID true
 #define DEBUG_RFID_CHECK true
-#define SCK_PIN   13    // Serial Clock (SCK)
-#define MISO_PIN  12    // Master In Slave Out (MISO)
-#define MOSI_PIN  8     // Master Out Slave In (MOSI)
-#define SS_PIN    10    // Slave Select (SS)
-#define RST_PIN   5
+#define SCK_PIN 13   // Serial Clock (SCK)
+#define MISO_PIN 12  // Master In Slave Out (MISO)
+#define MOSI_PIN 8   // Master Out Slave In (MOSI)
+#define SS_PIN 10    // Slave Select (SS)
+#define RST_PIN 5
 
 
-#define ESP_RED_PIN      14
-#define ESP_GREEN_PIN    15
-#define ESP_BLUE_PIN     16
+#define ESP_RED_PIN 14
+#define ESP_GREEN_PIN 15
+#define ESP_BLUE_PIN 16
 
-#define ESP32_LED_RED        0
-#define ESP32_LED_ORANGE     1
-#define ESP32_LED_YELLOW     2
-#define ESP32_LED_GREEN      3
+#define ESP32_LED_RED 0
+#define ESP32_LED_ORANGE 1
+#define ESP32_LED_YELLOW 2
+#define ESP32_LED_GREEN 3
 #define ESP32_LED_LIGHTGREEN 4
-#define ESP32_LED_CYAN       5
-#define ESP32_LED_BLUE       6
-#define ESP32_LED_PURPLE     7
-#define ESP32_LED_PINK       8
-#define ESP32_LED_WHITE      9
-#define ESP32_LED_OFF        10
+#define ESP32_LED_CYAN 5
+#define ESP32_LED_BLUE 6
+#define ESP32_LED_PURPLE 7
+#define ESP32_LED_PINK 8
+#define ESP32_LED_WHITE 9
+#define ESP32_LED_OFF 10
 
 MFRC522 rfid(SS_PIN, RST_PIN);
+
+unsigned long previousMillis = 0;  // will store last time LED was updated
+const long interval = 200;        // interval at which to blink (milliseconds)
 
 void setup() {
   Serial.begin(2000000);
   delay(1000);
   Serial.println("Initiate");
+
 
   compass.init();
 
@@ -114,8 +118,8 @@ void setup() {
   ledcAttachPin(RIGHT_MOTOR, RIGHT_PWM_CHANNEL);
 
 
-  SPI.begin(SCK_PIN, MISO_PIN , MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
-  rfid.PCD_Init();                      // init MFRC522
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
+  rfid.PCD_Init();                                 // init MFRC522
 
   pinMode(ESP_RED_PIN, OUTPUT);
   pinMode(ESP_GREEN_PIN, OUTPUT);
@@ -139,7 +143,7 @@ void Left() {
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed - NormalAdjust);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  if (DebugPrint){Serial.println("links sturen");}
+  if (DebugPrint) { Serial.println("links sturen"); }
 }
 
 void Right() {
@@ -147,7 +151,7 @@ void Right() {
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed - NormalAdjust);
-  if (DebugPrint){Serial.println("rechts sturen");}
+  if (DebugPrint) { Serial.println("rechts sturen"); }
 }
 
 // --- Sensor functies ---
@@ -165,18 +169,18 @@ void SensorCheck() {
   int s1 = !digitalRead(LEFT_SENSOR_PIN);
   int s2 = !digitalRead(RIGHT_SENSOR_PIN);
   String sData = String(s1) + String(s2);
-  if (DebugPrint){Serial.println(sData);}
+  if (DebugPrint) { Serial.println(sData); }
   int INTsData = sData.toInt();
 
   switch (INTsData) {
     case 0: Forward(); break;
     case 1:
       Right();
-      if (DebugPrint){Serial.println("Rechts");}
+      if (DebugPrint) { Serial.println("Rechts"); }
       break;
     case 10:
       Left();
-      if (DebugPrint){Serial.println("links");}
+      if (DebugPrint) { Serial.println("links"); }
       break;
     case 11: Stop(); break;
     default: Forward(); break;
@@ -186,12 +190,9 @@ void SensorCheck() {
 String readRFIDReader() {
   String uidStr = "";
 
-  if (rfid.PICC_IsNewCardPresent()) 
-  {
-    if (rfid.PICC_ReadCardSerial()) 
-    {
-      for (int i = 0; i < rfid.uid.size; i++) 
-      {
+  if (rfid.PICC_IsNewCardPresent()) {
+    if (rfid.PICC_ReadCardSerial()) {
+      for (int i = 0; i < rfid.uid.size; i++) {
         if (rfid.uid.uidByte[i] < 0x10) uidStr += "0";
         uidStr += String(rfid.uid.uidByte[i], HEX);
       }
@@ -200,9 +201,9 @@ String readRFIDReader() {
       rfid.PICC_HaltA();       // Halt PICC
       rfid.PCD_StopCrypto1();  // Stop encryption
 
-      // Debug prints  
+      // Debug prints
       if (DEBUG_RFID) {
-        if (DebugPrint){Serial.print("RFID reader read: ");}
+        if (DebugPrint) { Serial.print("RFID reader read: "); }
         Serial.println(uidStr);
       }
     }
@@ -211,107 +212,106 @@ String readRFIDReader() {
 }
 
 int uidCheck(String uidStr) {
-  String debugPrint = "Tag onbekend"; 
-  int returnValue = 1; 
+  String debugPrint = "Tag onbekend";
+  int returnValue = 1;
 
   if (uidStr == TAG_1) {
     debugPrint = "Tag 1";
     returnValue = 2;
-  } 
-  else if (uidStr == TAG_2) {
+  } else if (uidStr == TAG_2) {
     debugPrint = "Tag 2";
     returnValue = 3;
-  } 
-  else if (uidStr == TAG_3) {
+  } else if (uidStr == TAG_3) {
     debugPrint = "Tag 3";
     returnValue = 4;
-  } 
-  else if (uidStr == TAG_4) {
+  } else if (uidStr == TAG_4) {
     debugPrint = "Tag 4";
     returnValue = 5;
   }
 
-  // Debug prints  
-  if (DEBUG_RFID_CHECK)
-  {
-    if (DebugPrint){Serial.print("Tag: ");}
-    if (DebugPrint){Serial.print(debugPrint);}
-    if (DebugPrint){Serial.print(", Position Value: ");}
-    if (DebugPrint){Serial.println(returnValue);}
+  // Debug prints
+  if (DEBUG_RFID_CHECK) {
+    if (DebugPrint) { Serial.print("Tag: "); }
+    if (DebugPrint) { Serial.print(debugPrint); }
+    if (DebugPrint) { Serial.print(", Position Value: "); }
+    if (DebugPrint) { Serial.println(returnValue); }
   }
   return returnValue;
 }
 
-void ESP32LedCrontrol(int color ) {
- switch (color) {
-  case 0: // UIT
-    digitalWrite(ESP_RED_PIN, HIGH);
-    digitalWrite(ESP_GREEN_PIN, HIGH);
-    digitalWrite(ESP_BLUE_PIN, HIGH);
-    break;
+void ESP32LedCrontrol(int color) {
+  switch (color) {
+    case 0:  // UIT
+      digitalWrite(ESP_RED_PIN, HIGH);
+      digitalWrite(ESP_GREEN_PIN, HIGH);
+      digitalWrite(ESP_BLUE_PIN, HIGH);
+      break;
 
-  case 1: // ROOD
-    digitalWrite(ESP_RED_PIN, LOW);
-    digitalWrite(ESP_GREEN_PIN, HIGH);
-    digitalWrite(ESP_BLUE_PIN, HIGH);
-    break;
+    case 1:  // ROOD
+      digitalWrite(ESP_RED_PIN, LOW);
+      digitalWrite(ESP_GREEN_PIN, HIGH);
+      digitalWrite(ESP_BLUE_PIN, HIGH);
+      break;
 
-  case 2: // GROEN
-    digitalWrite(ESP_RED_PIN, HIGH);
-    digitalWrite(ESP_GREEN_PIN, LOW);
-    digitalWrite(ESP_BLUE_PIN, HIGH);
-    break;
+    case 2:  // GROEN
+      digitalWrite(ESP_RED_PIN, HIGH);
+      digitalWrite(ESP_GREEN_PIN, LOW);
+      digitalWrite(ESP_BLUE_PIN, HIGH);
+      break;
 
-  case 3: // BLAUW
-    digitalWrite(ESP_RED_PIN, HIGH);
-    digitalWrite(ESP_GREEN_PIN, HIGH);
-    digitalWrite(ESP_BLUE_PIN, LOW);
-    break;
+    case 3:  // BLAUW
+      digitalWrite(ESP_RED_PIN, HIGH);
+      digitalWrite(ESP_GREEN_PIN, HIGH);
+      digitalWrite(ESP_BLUE_PIN, LOW);
+      break;
 
-  case 4: // GEEL (rood + groen)
-    digitalWrite(ESP_RED_PIN, LOW);
-    digitalWrite(ESP_GREEN_PIN, LOW);
-    digitalWrite(ESP_BLUE_PIN, HIGH);
-    break;
+    case 4:  // GEEL (rood + groen)
+      digitalWrite(ESP_RED_PIN, LOW);
+      digitalWrite(ESP_GREEN_PIN, LOW);
+      digitalWrite(ESP_BLUE_PIN, HIGH);
+      break;
 
-  case 5: // MAGENTA (rood + blauw)
-    digitalWrite(ESP_RED_PIN, LOW);
-    digitalWrite(ESP_GREEN_PIN, HIGH);
-    digitalWrite(ESP_BLUE_PIN, LOW);
-    break;
+    case 5:  // MAGENTA (rood + blauw)
+      digitalWrite(ESP_RED_PIN, LOW);
+      digitalWrite(ESP_GREEN_PIN, HIGH);
+      digitalWrite(ESP_BLUE_PIN, LOW);
+      break;
 
-  case 6: // CYAAN (groen + blauw)
-    digitalWrite(ESP_RED_PIN, HIGH);
-    digitalWrite(ESP_GREEN_PIN, LOW);
-    digitalWrite(ESP_BLUE_PIN, LOW);
-    break;
+    case 6:  // CYAAN (groen + blauw)
+      digitalWrite(ESP_RED_PIN, HIGH);
+      digitalWrite(ESP_GREEN_PIN, LOW);
+      digitalWrite(ESP_BLUE_PIN, LOW);
+      break;
 
-  case 7: // WIT (rood + groen + blauw)
-    digitalWrite(ESP_RED_PIN, LOW);
-    digitalWrite(ESP_GREEN_PIN, LOW);
-    digitalWrite(ESP_BLUE_PIN, LOW);
-    break;
- }
+    case 7:  // WIT (rood + groen + blauw)
+      digitalWrite(ESP_RED_PIN, LOW);
+      digitalWrite(ESP_GREEN_PIN, LOW);
+      digitalWrite(ESP_BLUE_PIN, LOW);
+      break;
+  }
 }
 
 
 void loop() {
+  unsigned long currentMillis = millis();
   int Position = 0;
 
- // mesh.update();
-  String uid = readRFIDReader();
-  if (uid != "")                        // if their is a uid
-  {                     
-    Position = uidCheck(uid);           // Get position value from uidCheck
-    ESP32LedCrontrol(Position);
-    Stop();
-    delay(5000);
-    ESP32LedCrontrol(6969);
+  // mesh.update();
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+    String uid = readRFIDReader();
+    if (uid != "")  // if their is a uid
+    {
+      Position = uidCheck(uid);  // Get position value from uidCheck
+      ESP32LedCrontrol(Position);
+      Stop();
+      delay(5000);
+      ESP32LedCrontrol(6969);
+    }
   }
-
   SensorCheck();
   if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
     Stop();
   }
-
 }
