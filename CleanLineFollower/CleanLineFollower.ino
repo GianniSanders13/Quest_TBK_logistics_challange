@@ -1,12 +1,16 @@
 #include "painlessMesh.h"
-#include <QMC5883LCompass.h>
 #include <SPI.h>
 #include <MFRC522.h>
 
-bool DebugPrint = 0;
+// -----DEBUG -----
 
-// Compass
-QMC5883LCompass compass;
+#define DEBUG false             // Enable or disable all DEBUG prints
+
+#define DEBUG_RFID true        // RFID reader debug (what the readers received)
+#define DEBUG_RFID_CHECK true  // DEBUG print of de RFID tag id
+#define DEBUG_DRIVING true    // driving direct with sensor values.
+//------------------------------------------------------------------------------------
+
 Scheduler userScheduler;
 painlessMesh mesh;
 
@@ -52,14 +56,11 @@ int NormalAdjust = Speed;
 #define TAG_3 "936E0A3E"
 #define TAG_4 "536E0A3E"
 
-#define DEBUG_RFID true
-#define DEBUG_RFID_CHECK true
 #define SCK_PIN 13   // Serial Clock (SCK)
 #define MISO_PIN 12  // Master In Slave Out (MISO)
 #define MOSI_PIN 8   // Master Out Slave In (MOSI)
 #define SS_PIN 10    // Slave Select (SS)
 #define RST_PIN 5
-
 
 #define ESP_RED_PIN 14
 #define ESP_GREEN_PIN 15
@@ -79,52 +80,9 @@ int NormalAdjust = Speed;
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 
-unsigned long previousMillis = 0;  // will store last time LED was updated
-const long interval = 200;        // interval at which to blink (milliseconds)
+unsigned long previousMillis = 0;  // Will store last time RFID is read
+const long interval = 200;         // Interval of reading RFID in milliseconds
 
-void setup() {
-  Serial.begin(2000000);
-  delay(1000);
-  Serial.println("Initiate");
-
-
-  compass.init();
-
-  mesh.setDebugMsgTypes(ERROR | STARTUP);
-  mesh.init(MESH_NAME, MESH_PASSWORD, &userScheduler, MESH_PORT);
-  mesh.onNewConnection([](uint32_t nodeId) {
-    Serial.printf("New Connection, nodeId = %u\n", nodeId);
-  });
-  mesh.onChangedConnections([]() {
-    Serial.println("Connections changed");
-  });
-  mesh.onNodeTimeAdjusted([](int32_t offset) {
-    Serial.printf("Time adjusted by %d\n", offset);
-  });
-
-  // Pins
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-  pinMode(LEFT_SENSOR_PIN, INPUT);
-  pinMode(RIGHT_SENSOR_PIN, INPUT);
-  pinMode(LEFT_MOTOR_DIR, OUTPUT);
-  pinMode(RIGHT_MOTOR_DIR, OUTPUT);
-
-  // PWM setup met jouw pinnen
-  ledcSetup(LEFT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
-  ledcAttachPin(LEFT_MOTOR, LEFT_PWM_CHANNEL);
-
-  ledcSetup(RIGHT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
-  ledcAttachPin(RIGHT_MOTOR, RIGHT_PWM_CHANNEL);
-
-
-  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
-  rfid.PCD_Init();                                 // init MFRC522
-
-  pinMode(ESP_RED_PIN, OUTPUT);
-  pinMode(ESP_GREEN_PIN, OUTPUT);
-  pinMode(ESP_BLUE_PIN, OUTPUT);
-}
 // --- Motor functies ---
 void Stop() {
   ledcWrite(LEFT_PWM_CHANNEL, 0);
@@ -143,7 +101,6 @@ void Left() {
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed - NormalAdjust);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  if (DebugPrint) { Serial.println("links sturen"); }
 }
 
 void Right() {
@@ -151,7 +108,6 @@ void Right() {
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed - NormalAdjust);
-  if (DebugPrint) { Serial.println("rechts sturen"); }
 }
 
 // --- Sensor functies ---
@@ -166,25 +122,41 @@ int Ultrasoon_Check() {
 }
 
 void SensorCheck() {
+  String debugMessage;
   int s1 = !digitalRead(LEFT_SENSOR_PIN);
   int s2 = !digitalRead(RIGHT_SENSOR_PIN);
   String sData = String(s1) + String(s2);
-  if (DebugPrint) { Serial.println(sData); }
   int INTsData = sData.toInt();
 
   switch (INTsData) {
-    case 0: Forward(); break;
+    case 0:
+      Forward();
+      debugMessage = "Forward";
+      break;
     case 1:
       Right();
-      if (DebugPrint) { Serial.println("Rechts"); }
+      debugMessage = "Right";
       break;
     case 10:
       Left();
-      if (DebugPrint) { Serial.println("links"); }
+      debugMessage = "Left";
       break;
-    case 11: Stop(); break;
-    default: Forward(); break;
+    case 11:
+      Stop();
+      debugMessage = "Stop";
+      break;
+    default:
+      Forward();
+      debugMessage = "Forward";
+      break;
   }
+
+#if DEBUG && DEBUG_DRIVING
+  Serial.print("sensor value: ");
+  Serial.println(sData);
+  Serial.print("Direction: ");
+  Serial.println(debugMessage);
+#endif
 }
 
 String readRFIDReader() {
@@ -201,41 +173,40 @@ String readRFIDReader() {
       rfid.PICC_HaltA();       // Halt PICC
       rfid.PCD_StopCrypto1();  // Stop encryption
 
-      // Debug prints
-      if (DEBUG_RFID) {
-        if (DebugPrint) { Serial.print("RFID reader read: "); }
-        Serial.println(uidStr);
-      }
+#if DEBUG && DEBUG_RFID
+      Serial.print("RFID reader read: ");
+      Serial.println(uidStr);
+#endif
     }
   }
   return uidStr;
 }
 
 int uidCheck(String uidStr) {
-  String debugPrint = "Tag onbekend";
+  String debugMessage;
   int returnValue = 1;
 
   if (uidStr == TAG_1) {
-    debugPrint = "Tag 1";
+    debugMessage = "Tag 1";
     returnValue = 2;
   } else if (uidStr == TAG_2) {
-    debugPrint = "Tag 2";
+    debugMessage = "Tag 2";
     returnValue = 3;
   } else if (uidStr == TAG_3) {
-    debugPrint = "Tag 3";
+    debugMessage = "Tag 3";
     returnValue = 4;
   } else if (uidStr == TAG_4) {
-    debugPrint = "Tag 4";
+    debugMessage = "Tag 4";
     returnValue = 5;
   }
 
-  // Debug prints
-  if (DEBUG_RFID_CHECK) {
-    if (DebugPrint) { Serial.print("Tag: "); }
-    if (DebugPrint) { Serial.print(debugPrint); }
-    if (DebugPrint) { Serial.print(", Position Value: "); }
-    if (DebugPrint) { Serial.println(returnValue); }
-  }
+#if DEBUG && DEBUG_RFID_CHECK
+  Serial.print("Tag: ");
+  Serial.print(debugMessage);
+  Serial.print(", Position Value: ");
+  Serial.println(returnValue);
+#endif
+
   return returnValue;
 }
 
@@ -291,6 +262,45 @@ void ESP32LedCrontrol(int color) {
   }
 }
 
+void setup() {
+  Serial.begin(2000000);
+  delay(1000);
+  Serial.println("Initiate");
+
+  mesh.setDebugMsgTypes(ERROR | STARTUP);
+  mesh.init(MESH_NAME, MESH_PASSWORD, &userScheduler, MESH_PORT);
+  mesh.onNewConnection([](uint32_t nodeId) {
+    Serial.printf("New Connection, nodeId = %u\n", nodeId);
+  });
+  mesh.onChangedConnections([]() {
+    Serial.println("Connections changed");
+  });
+  mesh.onNodeTimeAdjusted([](int32_t offset) {
+    Serial.printf("Time adjusted by %d\n", offset);
+  });
+
+  // Pins
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(LEFT_SENSOR_PIN, INPUT);
+  pinMode(RIGHT_SENSOR_PIN, INPUT);
+  pinMode(LEFT_MOTOR_DIR, OUTPUT);
+  pinMode(RIGHT_MOTOR_DIR, OUTPUT);
+
+  // PWM setup met jouw pinnen
+  ledcSetup(LEFT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
+  ledcAttachPin(LEFT_MOTOR, LEFT_PWM_CHANNEL);
+
+  ledcSetup(RIGHT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
+  ledcAttachPin(RIGHT_MOTOR, RIGHT_PWM_CHANNEL);
+
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
+  rfid.PCD_Init();                                 // init MFRC522
+
+  pinMode(ESP_RED_PIN, OUTPUT);
+  pinMode(ESP_GREEN_PIN, OUTPUT);
+  pinMode(ESP_BLUE_PIN, OUTPUT);
+}
 
 void loop() {
   unsigned long currentMillis = millis();
@@ -298,10 +308,10 @@ void loop() {
 
   // mesh.update();
   if (currentMillis - previousMillis >= interval) {
-    // save the last time you blinked the LED
     previousMillis = currentMillis;
+
     String uid = readRFIDReader();
-    if (uid != "")  // if their is a uid
+    if (uid != "")  // if there is a uid
     {
       Position = uidCheck(uid);  // Get position value from uidCheck
       ESP32LedCrontrol(Position);
