@@ -4,11 +4,11 @@
 
 // -----DEBUG -----
 
-#define DEBUG false             // Enable or disable all DEBUG prints
+#define DEBUG false            // Enable or disable all DEBUG prints
 
 #define DEBUG_RFID true        // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK true  // DEBUG print of de RFID tag id
-#define DEBUG_DRIVING true    // driving direct with sensor values.
+#define DEBUG_DRIVING true     // driving direct with sensor values.
 //------------------------------------------------------------------------------------
 
 Scheduler userScheduler;
