@@ -4,11 +4,11 @@
 
 // -----DEBUG -----
 
-#define DEBUG false             // Enable or disable all DEBUG prints
+#define DEBUG true             // Enable or disable all DEBUG prints
 
 #define DEBUG_RFID true        // RFID reader debug (what the readers received)
-#define DEBUG_RFID_CHECK true  // DEBUG print of de RFID tag id
-#define DEBUG_DRIVING true    // driving direct with sensor values.
+#define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
+#define DEBUG_DRIVING false    // driving direct with sensor values.
 //------------------------------------------------------------------------------------
 
 Scheduler userScheduler;
@@ -108,6 +108,30 @@ void Right() {
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed - NormalAdjust);
+}
+
+void TurnAround() {
+  digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
+  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
+  ledcWrite(LEFT_PWM_CHANNEL, Speed);
+  ledcWrite(RIGHT_PWM_CHANNEL, Speed);
+  delay(1000);
+}
+
+void TurnLeft() {
+  digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
+  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
+  ledcWrite(LEFT_PWM_CHANNEL, Speed);
+  ledcWrite(RIGHT_PWM_CHANNEL, Speed);
+  delay(500);
+}
+
+void TurnRight() {
+  digitalWrite(LEFT_MOTOR_DIR, FORWARD);
+  digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
+  ledcWrite(LEFT_PWM_CHANNEL, Speed);
+  ledcWrite(RIGHT_PWM_CHANNEL, Speed);
+  delay(1000);
 }
 
 // --- Sensor functies ---
