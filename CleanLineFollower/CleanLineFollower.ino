@@ -4,11 +4,13 @@
 
 // -----DEBUG -----
 
+
 #define DEBUG true             // Enable or disable all DEBUG prints
 
 #define DEBUG_RFID true        // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
 #define DEBUG_DRIVING false    // driving direct with sensor values.
+
 //------------------------------------------------------------------------------------
 
 Scheduler userScheduler;
@@ -77,6 +79,20 @@ int NormalAdjust = Speed;
 #define ESP32_LED_PINK 8
 #define ESP32_LED_WHITE 9
 #define ESP32_LED_OFF 10
+
+
+#define UIDBYTE0 0
+#define UIDBYTE1 1
+#define UIDBYTE2 2
+#define UIDBYTE3 3
+
+#define SIZE_UID 4
+byte uidBytes[SIZE_UID];
+
+uint16_t tagId;
+uint8_t kSS;
+uint8_t sID;
+
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 
@@ -180,59 +196,86 @@ void SensorCheck() {
   Serial.println(sData);
   Serial.print("Direction: ");
   Serial.println(debugMessage);
+  Serial.println();
+  
 #endif
 }
 
-String readRFIDReader() {
-  String uidStr = "";
-
+bool readRFIDReader() {
+  // byte uidSize = rfid.uid.size;
   if (rfid.PICC_IsNewCardPresent()) {
     if (rfid.PICC_ReadCardSerial()) {
-      for (int i = 0; i < rfid.uid.size; i++) {
-        if (rfid.uid.uidByte[i] < 0x10) uidStr += "0";
-        uidStr += String(rfid.uid.uidByte[i], HEX);
+      for (int i = 0; i < SIZE_UID; i++) {
+        uidBytes[i] = rfid.uid.uidByte[i];
       }
-
-      uidStr.toUpperCase();    // Make the UID uppercase
       rfid.PICC_HaltA();       // Halt PICC
       rfid.PCD_StopCrypto1();  // Stop encryption
 
 #if DEBUG && DEBUG_RFID
-      Serial.print("RFID reader read: ");
-      Serial.println(uidStr);
+      Serial.print("RFID UID: ");
+      for (byte i = 0; i < SIZE_UID; i++) {
+        if (uidBytes[i] < 0x10) Serial.print("0");
+        Serial.print(uidBytes[i], BIN);
+        if (i < SIZE_UID - 1) Serial.print(":");
+      }
+      Serial.println("\n");
+      
 #endif
+
+      return true;
     }
   }
-  return uidStr;
+  return false;
 }
 
-int uidCheck(String uidStr) {
-  String debugMessage;
-  int returnValue = 1;
+bool formatRfidUid() {
+  
+  tagId = ((uint16_t)uidBytes[UIDBYTE0] << 8) | uidBytes[UIDBYTE1];
+  kSS = uidBytes[UIDBYTE2];
+  sID = uidBytes[UIDBYTE3];
 
-  if (uidStr == TAG_1) {
-    debugMessage = "Tag 1";
-    returnValue = 2;
-  } else if (uidStr == TAG_2) {
-    debugMessage = "Tag 2";
-    returnValue = 3;
-  } else if (uidStr == TAG_3) {
-    debugMessage = "Tag 3";
-    returnValue = 4;
-  } else if (uidStr == TAG_4) {
-    debugMessage = "Tag 4";
-    returnValue = 5;
-  }
+#if DEBUG && DEBUG_FORMAT
 
-#if DEBUG && DEBUG_RFID_CHECK
-  Serial.print("Tag: ");
-  Serial.print(debugMessage);
-  Serial.print(", Position Value: ");
-  Serial.println(returnValue);
+  Serial.println("---------------UID Format ID Tag-----------------");
+  Serial.print("Tag Id: ");
+  Serial.println(tagId);
+  Serial.print("KSS (kruising (0), splising (1) station (2)): ");
+  Serial.println(kSS);
+  Serial.print("Station ID: ");
+  Serial.println(sID);
+  Serial.println("---------------------------------------------------");
 #endif
-
-  return returnValue;
+return true;
 }
+
+
+// int uidCheck(String uidStr) {
+//   String debugMessage;
+//   int returnValue = 1;
+
+//   if (uidStr == TAG_1) {
+//     debugMessage = "Tag 1";
+//     returnValue = 2;
+//   } else if (uidStr == TAG_2) {
+//     debugMessage = "Tag 2";
+//     returnValue = 3;
+//   } else if (uidStr == TAG_3) {
+//     debugMessage = "Tag 3";
+//     returnValue = 4;
+//   } else if (uidStr == TAG_4) {
+//     debugMessage = "Tag 4";
+//     returnValue = 5;
+//   }
+//
+// #if DEBUG && DEBUG_RFID_CHECK
+//   Serial.print("Tag: ");
+//   Serial.print(debugMessage);
+//   Serial.print(", Position Value: ");
+//   Serial.println(returnValue);
+// #endif
+
+//   return returnValue;
+// }
 
 void ESP32LedCrontrol(int color) {
   switch (color) {
@@ -287,7 +330,7 @@ void ESP32LedCrontrol(int color) {
 }
 
 void setup() {
-  Serial.begin(2000000);
+  Serial.begin(115200);
   delay(1000);
   Serial.println("Initiate");
 
@@ -334,14 +377,14 @@ void loop() {
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
 
-    String uid = readRFIDReader();
-    if (uid != "")  // if there is a uid
-    {
-      Position = uidCheck(uid);  // Get position value from uidCheck
-      ESP32LedCrontrol(Position);
-      Stop();
-      delay(5000);
-      ESP32LedCrontrol(6969);
+    if (readRFIDReader()) {
+      if (formatRfidUid()) {
+        //Position = uidCheck(uid);  // Get position value from uidCheck
+        //ESP32LedCrontrol(Position);
+        Stop();
+        delay(5000);
+        //ESP32LedCrontrol(6969);
+      }
     }
   }
   SensorCheck();
