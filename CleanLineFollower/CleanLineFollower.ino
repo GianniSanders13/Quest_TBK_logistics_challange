@@ -7,10 +7,10 @@ painlessMesh mesh;
 
 // --------------------DEBUG --------------------------------------------------------
 
-#define DEBUG false  // Enable or disable all DEBUG prints
-#define DEBUG_RFID true        // RFID reader debug (what the readers received)
+#define DEBUG false             // Enable or disable all DEBUG prints
+#define DEBUG_RFID true         // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
-#define DEBUG_DRIVING false    // driving direct with sensor values.
+#define DEBUG_DRIVING false     // driving direct with sensor values.
 
 //------------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@ const int testRouteLength = sizeof(testRoute) / sizeof(testRoute[0]);
 intersectionMapStruct tagMap[] = {
 
   { 1, 2, 0, 6, 11 },  // tag 1
-  { 2, 0, 3, 8, 1 },   // tag 2
+  { 2, 1, 0, 3, 8 },   // tag 2
   { 3, 0, 4, 9, 2 },   // tag 3
   { 4, 0, 5, 10, 3 },  // tag 4
   { 5, 11, 6, 0, 4 },  // tag 5
@@ -169,7 +169,7 @@ void TurnRight() {
   digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  delay(1000);
+  delay(500);
 }
 
 // --- Sensor functies ---
@@ -278,13 +278,13 @@ void ESP32LedCrontrol(int color) {
       digitalWrite(ESP_BLUE_PIN, HIGH);
       break;
 
-    case 1:  // ROOD
+    case 1:  // ROOD  
       digitalWrite(ESP_RED_PIN, LOW);
       digitalWrite(ESP_GREEN_PIN, HIGH);
       digitalWrite(ESP_BLUE_PIN, HIGH);
       break;
 
-    case 2:  // GROEN
+    case 2:  // GROEN 
       digitalWrite(ESP_RED_PIN, HIGH);
       digitalWrite(ESP_GREEN_PIN, LOW);
       digitalWrite(ESP_BLUE_PIN, HIGH);
@@ -320,27 +320,32 @@ void ESP32LedCrontrol(int color) {
       digitalWrite(ESP_BLUE_PIN, LOW);
       break;
   }
-}
-bool intersection( uint16_t nextTagId) {
+} 
+bool intersection(uint16_t nextTagId) {
   for (int i = 0; i < mapLength; i++) {
     if (tagMap[i].tagId == tagId) {
       if (tagMap[i].straightTag == nextTagId) {
         Serial.println("Ga rechtdoor");
-
+        Forward();
+        ESP32LedCrontrol(2); // groen
         return true;
       } else if (tagMap[i].leftTag == nextTagId) {
         Serial.println("Ga linksaf");
+        TurnLeft();
+        ESP32LedCrontrol(3); // blauw
         return true;
       } else if (tagMap[i].rightTag == nextTagId) {
         Serial.println("Ga rechtsaf");
-
+        TurnRight();
         return true;
       } else if (tagMap[i].backwardTag == nextTagId) {
         Serial.println("Keer om");
-
+        TurnAround();
+        ESP32LedCrontrol(5); // paars
         return true;
       } else {
         Serial.println("Volgende tag niet verbonden aan dit kruispunt!");
+        ESP32LedCrontrol(1); // rood
         return false;
       }
     }
@@ -401,6 +406,8 @@ void setup() {
 
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
   rfid.PCD_Init();                                 // init MFRC522
+  rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
+
 
   pinMode(ESP_RED_PIN, OUTPUT);
   pinMode(ESP_GREEN_PIN, OUTPUT);
@@ -411,7 +418,7 @@ void loop() {
   unsigned long currentMillis = millis();
   int Position = 0;
 
-  if (routeCounter == (sizeof(testRoute) + 1)) {
+  if (routeCounter == sizeof(testRoute)) {
     routeCounter = 0;
   }
 
