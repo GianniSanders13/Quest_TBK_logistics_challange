@@ -2,7 +2,10 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-// -----DEBUG -----
+Scheduler userScheduler;
+painlessMesh mesh;
+
+// --------------------DEBUG --------------------------------------------------------
 
 #define DEBUG true  // Enable or disable all DEBUG prints
 
@@ -12,8 +15,34 @@
 #define DEBUG_FORMAT true
 //------------------------------------------------------------------------------------
 
-Scheduler userScheduler;
-painlessMesh mesh;
+struct intersectionMapStruct {
+  uint16_t tagId;
+  uint16_t leftTag;
+  uint16_t straightTag;
+  uint16_t rightTag;
+  uint16_t backwardTag;
+};
+
+uint16_t testRoute[] = { 11, 6, 7, 8, 2, 3, 4, 5, 11 };
+const int testRouteLength = sizeof(testRoute) / sizeof(testRoute[0]);
+
+intersectionMapStruct tagMap[] = {
+
+  { 1, 2, 0, 6, 11 },  // tag 1
+  { 2, 0, 3, 8, 1 },   // tag 2
+  { 3, 0, 4, 9, 2 },   // tag 3
+  { 4, 0, 5, 10, 3 },  // tag 4
+  { 5, 11, 6, 0, 4 },  // tag 5
+  { 6, 11, 1, 7, 5 },  // tag 6
+  { 7, 8, 0, 10, 6 },  // tag 7
+  { 8, 2, 9, 0, 7 },   // tag 8
+  { 9, 3, 10, 0, 8 },  // tag 9
+  { 10, 4, 7, 0, 9 },  // tag 10
+  { 11, 0, 1, 6, 5 }   // tag 11
+};
+const int mapLength = sizeof(tagMap) / sizeof(tagMap[0]);
+
+
 
 // Mesh instellingen
 #define MESH_NAME "Quest-Network"
@@ -89,7 +118,7 @@ int NormalAdjust = Speed;
 byte uidBytes[SIZE_UID];
 
 uint16_t tagId;
-uint8_t kSS;
+uint8_t kS;
 uint8_t sID;
 
 
@@ -172,7 +201,7 @@ void SensorCheck() {
   Serial.print("Direction: ");
   Serial.println(debugMessage);
   Serial.println();
-  
+
 #endif
 }
 
@@ -194,7 +223,7 @@ bool readRFIDReader() {
         if (i < SIZE_UID - 1) Serial.print(":");
       }
       Serial.println("\n");
-      
+
 #endif
 
       return true;
@@ -204,9 +233,9 @@ bool readRFIDReader() {
 }
 
 bool formatRfidUid() {
-  
+
   tagId = ((uint16_t)uidBytes[UIDBYTE0] << 8) | uidBytes[UIDBYTE1];
-  kSS = uidBytes[UIDBYTE2];
+  kS = uidBytes[UIDBYTE2];
   sID = uidBytes[UIDBYTE3];
 
 #if DEBUG && DEBUG_FORMAT
@@ -214,43 +243,14 @@ bool formatRfidUid() {
   Serial.println("---------------UID Format ID Tag-----------------");
   Serial.print("Tag Id: ");
   Serial.println(tagId);
-  Serial.print("KSS (kruising (0), splising (1) station (2)): ");
-  Serial.println(kSS);
+  Serial.print("KS (kruising (0), station (1)): ");
+  Serial.println(kS);
   Serial.print("Station ID: ");
   Serial.println(sID);
   Serial.println("---------------------------------------------------");
 #endif
-return true;
+  return true;
 }
-
-
-// int uidCheck(String uidStr) {
-//   String debugMessage;
-//   int returnValue = 1;
-
-//   if (uidStr == TAG_1) {
-//     debugMessage = "Tag 1";
-//     returnValue = 2;
-//   } else if (uidStr == TAG_2) {
-//     debugMessage = "Tag 2";
-//     returnValue = 3;
-//   } else if (uidStr == TAG_3) {
-//     debugMessage = "Tag 3";
-//     returnValue = 4;
-//   } else if (uidStr == TAG_4) {
-//     debugMessage = "Tag 4";
-//     returnValue = 5;
-//   }
-//
-// #if DEBUG && DEBUG_RFID_CHECK
-//   Serial.print("Tag: ");
-//   Serial.print(debugMessage);
-//   Serial.print(", Position Value: ");
-//   Serial.println(returnValue);
-// #endif
-
-//   return returnValue;
-// }
 
 void ESP32LedCrontrol(int color) {
   switch (color) {
@@ -302,6 +302,49 @@ void ESP32LedCrontrol(int color) {
       digitalWrite(ESP_BLUE_PIN, LOW);
       break;
   }
+}
+
+void rfidTagAction(uint16_t tagId, uint8_t kS, uint8_t sID,uint16_t nextTagId ) {
+  switch (kS) {
+    case 0:
+      Serial.println("Tag intersection");
+      void intersection(tagId, nextTagId);
+
+        break;
+    case 1:
+      Serial.println("Tag station");
+
+        break;
+    default:
+      Serial.println("Tag action Unknown");
+  }
+}
+
+void intersection(uint16_t currentTagId, uint16_t nextTagId) {
+  for (int i = 0; i < mapLength; i++) {
+    if (tagMap[i].tagId == currentTagId) {
+      if (tagMap[i].straightTag == nextTagId) {
+        Serial.println("Ga rechtdoor");
+
+        return;
+      } else if (tagMap[i].leftTag == nextTagId) {
+        Serial.println("Ga linksaf");
+        return;
+      } else if (tagMap[i].rightTag == nextTagId) {
+        Serial.println("Ga rechtsaf");
+
+        return;
+      } else if (tagMap[i].backwardTag == nextTagId) {
+        Serial.println("Keer om");
+
+        return;
+      } else {
+        Serial.println("Volgende tag niet verbonden aan dit kruispunt!");
+        return;
+      }
+    }
+  }
+  Serial.println("Huidige tag niet gevonden in kaart!");
 }
 
 void setup() {
