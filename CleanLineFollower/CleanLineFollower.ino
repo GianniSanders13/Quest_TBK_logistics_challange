@@ -2,19 +2,47 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-// -----DEBUG -----
+Scheduler userScheduler;
+painlessMesh mesh;
 
+// --------------------DEBUG --------------------------------------------------------
 
-#define DEBUG true             // Enable or disable all DEBUG prints
-
+#define DEBUG false  // Enable or disable all DEBUG prints
 #define DEBUG_RFID true        // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
 #define DEBUG_DRIVING false    // driving direct with sensor values.
 
 //------------------------------------------------------------------------------------
 
-Scheduler userScheduler;
-painlessMesh mesh;
+struct intersectionMapStruct {
+  uint16_t tagId;
+  uint16_t leftTag;
+  uint16_t straightTag;
+  uint16_t rightTag;
+  uint16_t backwardTag;
+};
+
+uint16_t testRoute[] = { 11, 6, 7, 8, 2, 3, 4, 5, 11 };
+const int testRouteLength = sizeof(testRoute) / sizeof(testRoute[0]);
+
+intersectionMapStruct tagMap[] = {
+
+  { 1, 2, 0, 6, 11 },  // tag 1
+  { 2, 0, 3, 8, 1 },   // tag 2
+  { 3, 0, 4, 9, 2 },   // tag 3
+  { 4, 0, 5, 10, 3 },  // tag 4
+  { 5, 11, 6, 0, 4 },  // tag 5
+  { 6, 1, 7, 5, 11 },  // tag 6
+  { 7, 8, 0, 10, 6 },  // tag 7
+  { 8, 2, 9, 0, 7 },   // tag 8
+  { 9, 3, 10, 0, 8 },  // tag 9
+  { 10, 4, 7, 0, 9 },  // tag 10
+  { 11, 0, 1, 6, 5 }   // tag 11
+};
+const int mapLength = sizeof(tagMap) / sizeof(tagMap[0]);
+
+char routeCounter = 0;
+
 
 // Mesh instellingen
 #define MESH_NAME "Quest-Network"
@@ -52,12 +80,6 @@ int NormalAdjust = Speed;
 #define TRIG_PULSE_DELAY_US 2
 #define PULSE_TIMEOUT_US 30000
 
-// RFID
-#define TAG_1 "F7910A3E"
-#define TAG_2 "32920A3E"
-#define TAG_3 "936E0A3E"
-#define TAG_4 "536E0A3E"
-
 #define SCK_PIN 13   // Serial Clock (SCK)
 #define MISO_PIN 12  // Master In Slave Out (MISO)
 #define MOSI_PIN 8   // Master Out Slave In (MOSI)
@@ -90,7 +112,7 @@ int NormalAdjust = Speed;
 byte uidBytes[SIZE_UID];
 
 uint16_t tagId;
-uint8_t kSS;
+uint8_t iS;
 uint8_t sID;
 
 
@@ -197,7 +219,7 @@ void SensorCheck() {
   Serial.print("Direction: ");
   Serial.println(debugMessage);
   Serial.println();
-  
+
 #endif
 }
 
@@ -219,7 +241,7 @@ bool readRFIDReader() {
         if (i < SIZE_UID - 1) Serial.print(":");
       }
       Serial.println("\n");
-      
+
 #endif
 
       return true;
@@ -229,9 +251,9 @@ bool readRFIDReader() {
 }
 
 bool formatRfidUid() {
-  
+
   tagId = ((uint16_t)uidBytes[UIDBYTE0] << 8) | uidBytes[UIDBYTE1];
-  kSS = uidBytes[UIDBYTE2];
+  iS = uidBytes[UIDBYTE2];
   sID = uidBytes[UIDBYTE3];
 
 #if DEBUG && DEBUG_FORMAT
@@ -239,43 +261,14 @@ bool formatRfidUid() {
   Serial.println("---------------UID Format ID Tag-----------------");
   Serial.print("Tag Id: ");
   Serial.println(tagId);
-  Serial.print("KSS (kruising (0), splising (1) station (2)): ");
-  Serial.println(kSS);
+  Serial.print("iS (intersection (0) or station (1)): ");
+  Serial.println(iS);
   Serial.print("Station ID: ");
   Serial.println(sID);
   Serial.println("---------------------------------------------------");
 #endif
-return true;
+  return true;
 }
-
-
-// int uidCheck(String uidStr) {
-//   String debugMessage;
-//   int returnValue = 1;
-
-//   if (uidStr == TAG_1) {
-//     debugMessage = "Tag 1";
-//     returnValue = 2;
-//   } else if (uidStr == TAG_2) {
-//     debugMessage = "Tag 2";
-//     returnValue = 3;
-//   } else if (uidStr == TAG_3) {
-//     debugMessage = "Tag 3";
-//     returnValue = 4;
-//   } else if (uidStr == TAG_4) {
-//     debugMessage = "Tag 4";
-//     returnValue = 5;
-//   }
-//
-// #if DEBUG && DEBUG_RFID_CHECK
-//   Serial.print("Tag: ");
-//   Serial.print(debugMessage);
-//   Serial.print(", Position Value: ");
-//   Serial.println(returnValue);
-// #endif
-
-//   return returnValue;
-// }
 
 void ESP32LedCrontrol(int color) {
   switch (color) {
@@ -328,6 +321,51 @@ void ESP32LedCrontrol(int color) {
       break;
   }
 }
+bool intersection( uint16_t nextTagId) {
+  for (int i = 0; i < mapLength; i++) {
+    if (tagMap[i].tagId == tagId) {
+      if (tagMap[i].straightTag == nextTagId) {
+        Serial.println("Ga rechtdoor");
+
+        return true;
+      } else if (tagMap[i].leftTag == nextTagId) {
+        Serial.println("Ga linksaf");
+        return true;
+      } else if (tagMap[i].rightTag == nextTagId) {
+        Serial.println("Ga rechtsaf");
+
+        return true;
+      } else if (tagMap[i].backwardTag == nextTagId) {
+        Serial.println("Keer om");
+
+        return true;
+      } else {
+        Serial.println("Volgende tag niet verbonden aan dit kruispunt!");
+        return false;
+      }
+    }
+  }
+  Serial.println("Huidige tag niet gevonden in kaart!");
+  return false;
+}
+
+void rfidTagAction() {
+  switch (iS) {
+    case 0:
+      Serial.println("Tag intersection");
+      if (intersection(testRoute[routeCounter]))
+        routeCounter++;
+
+      break;
+    case 1:
+      Serial.println("Tag station");
+
+      break;
+    default:
+      Serial.println("Tag action Unknown");
+  }
+}
+
 
 void setup() {
   Serial.begin(115200);
@@ -373,16 +411,22 @@ void loop() {
   unsigned long currentMillis = millis();
   int Position = 0;
 
+  if (routeCounter == (sizeof(testRoute) + 1)) {
+    routeCounter = 0;
+  }
+
+
   // mesh.                                          ();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
 
     if (readRFIDReader()) {
       if (formatRfidUid()) {
+        rfidTagAction();
         //Position = uidCheck(uid);  // Get position value from uidCheck
         //ESP32LedCrontrol(Position);
-        Stop();
-        delay(5000);
+        //Stop();
+        //delay(5000);
         //ESP32LedCrontrol(6969);
       }
     }
