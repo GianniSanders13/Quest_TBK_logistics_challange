@@ -7,38 +7,113 @@ painlessMesh mesh;
 
 // --------------------DEBUG --------------------------------------------------------
 
-#define DEBUG false  // Enable or disable all DEBUG prints
-#define DEBUG_RFID true        // RFID reader debug (what the readers received)
+#define DEBUG true              // Enable or disable all DEBUG prints
+#define DEBUG_RFID false        // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
-#define DEBUG_DRIVING false    // driving direct with sensor values.
-
+#define DEBUG_DRIVING false     // driving direct with sensor values.
+#define DEBUG_FORMAT false
+#define TAG_ACTION true
+#define DEBUG_TAG_STEERING_DIRECTION true
 //------------------------------------------------------------------------------------
 
-struct intersectionMapStruct {
+struct rfidMapStruct {
   uint16_t tagId;
+  uint16_t lastTagId;
   uint16_t leftTag;
   uint16_t straightTag;
   uint16_t rightTag;
-  uint16_t backwardTag;
 };
 
-uint16_t testRoute[] = { 11, 6, 7, 8, 2, 3, 4, 5, 11 };
+uint16_t testRoute[] = { 15, 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11 };
+uint8_t routeSize = sizeof(testRoute) / sizeof(testRoute[0]);
+
+uint16_t oldTagId = 5;
+uint16_t tagId = 5;
 const int testRouteLength = sizeof(testRoute) / sizeof(testRoute[0]);
 
-intersectionMapStruct tagMap[] = {
+rfidMapStruct tagMap[] = {
+  // Tag 1
+  { 1, 16, 2, 0, 6 },
+  { 1, 6, 16, 2, 0 },
+  { 1, 2, 0, 6, 16 },
 
-  { 1, 2, 0, 6, 11 },  // tag 1
-  { 2, 0, 3, 8, 1 },   // tag 2
-  { 3, 0, 4, 9, 2 },   // tag 3
-  { 4, 0, 5, 10, 3 },  // tag 4
-  { 5, 11, 6, 0, 4 },  // tag 5
-  { 6, 1, 7, 5, 11 },  // tag 6
-  { 7, 8, 0, 10, 6 },  // tag 7
-  { 8, 2, 9, 0, 7 },   // tag 8
-  { 9, 3, 10, 0, 8 },  // tag 9
-  { 10, 4, 7, 0, 9 },  // tag 10
-  { 11, 0, 1, 6, 5 }   // tag 11
+  // Tag 2
+  { 2, 1, 0, 12, 8 },
+  { 2, 8, 1, 0, 12 },
+  { 2, 12, 8, 1, 0 },
+
+  // Tag 3
+  { 3, 12, 0, 13, 9 },
+  { 3, 9, 12, 0, 13 },
+  { 3, 13, 9, 12, 0 },
+
+  // Tag 4
+  { 4, 13, 0, 14, 10 },
+  { 4, 10, 13, 0, 14 },
+  { 4, 14, 10, 13, 0 },
+
+  // Tag 5
+  { 5, 14, 11, 6, 0 },
+  { 5, 11, 6, 0, 14 },
+  { 5, 6, 0, 14, 11 },
+
+  // Tag 6
+  { 6, 5, 15, 1, 7 },
+  { 6, 15, 1, 7, 5 },
+  { 6, 1, 7, 5, 15 },
+  { 6, 7, 5, 15, 1 },
+
+  // Tag 7
+  { 7, 6, 8, 0, 10 },
+  { 7, 8, 0, 10, 6 },
+  { 7, 10, 6, 8, 0 },
+
+  // Tag 8
+  { 8, 7, 2, 9, 0 },
+  { 8, 2, 9, 0, 7 },
+  { 8, 9, 0, 7, 2 },
+
+  // Tag 9
+  { 9, 8, 3, 17, 0 },
+  { 9, 17, 0, 8, 3 },
+  { 9, 3, 17, 0, 8 },
+
+  // Tag 10
+  { 10, 17, 4, 7, 0 },
+  { 10, 4, 7, 0, 17 },
+  { 10, 7, 0, 17, 4 },
+
+  // Tag 11
+  { 11, 16, 15, 5, 0 },
+  { 11, 15, 5, 0, 16 },
+  { 11, 5, 0, 16, 15 },
+
+  // Tag 12 (blauw station)
+  { 12, 2, 0, 3, 0 },
+  { 12, 3, 0, 2, 0 },
+
+  // Tag 13 (blauw station)
+  { 13, 3, 0, 4, 0 },
+  { 13, 4, 0, 3, 0 },
+
+  // Tag 14 (blauw station)
+  { 14, 4, 0, 5, 0 },
+  { 14, 5, 0, 4, 0 },
+
+  // Tag 15 (blauw station)
+  { 15, 11, 0, 6, 0 },
+  { 15, 6, 0, 11, 0 },
+
+
+  // Tag 16 (blauw station)
+  { 16, 11, 0, 1, 0 },
+  { 16, 1, 0, 11, 0 },
+
+  // Tag 17 (blauw station)
+  { 17, 10, 0, 9, 0 },
+  { 17, 9, 0, 10, 0 }
 };
+
 const int mapLength = sizeof(tagMap) / sizeof(tagMap[0]);
 
 char routeCounter = 0;
@@ -111,7 +186,6 @@ int NormalAdjust = Speed;
 #define SIZE_UID 4
 byte uidBytes[SIZE_UID];
 
-uint16_t tagId;
 uint8_t iS;
 uint8_t sID;
 
@@ -169,7 +243,7 @@ void TurnRight() {
   digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  delay(1000);
+  delay(500);
 }
 
 // --- Sensor functies ---
@@ -204,8 +278,8 @@ void SensorCheck() {
       debugMessage = "Left";
       break;
     case 11:
-      Stop();
-      debugMessage = "Stop";
+      Forward();
+      debugMessage = "Forward";
       break;
     default:
       Forward();
@@ -251,7 +325,7 @@ bool readRFIDReader() {
 }
 
 bool formatRfidUid() {
-
+  oldTagId = tagId;
   tagId = ((uint16_t)uidBytes[UIDBYTE0] << 8) | uidBytes[UIDBYTE1];
   iS = uidBytes[UIDBYTE2];
   sID = uidBytes[UIDBYTE3];
@@ -265,6 +339,8 @@ bool formatRfidUid() {
   Serial.println(iS);
   Serial.print("Station ID: ");
   Serial.println(sID);
+  Serial.print("OldTagId: ");
+  Serial.println(oldTagId);
   Serial.println("---------------------------------------------------");
 #endif
   return true;
@@ -321,49 +397,69 @@ void ESP32LedCrontrol(int color) {
       break;
   }
 }
-bool intersection( uint16_t nextTagId) {
+bool intersection(uint16_t nextTagId) {
+  String debugMessage= "tag not found in bitmap";
+  bool returnValue;
   for (int i = 0; i < mapLength; i++) {
-    if (tagMap[i].tagId == tagId) {
+    if (tagMap[i].tagId == tagId && tagMap[i].lastTagId == oldTagId) {  //
       if (tagMap[i].straightTag == nextTagId) {
-        Serial.println("Ga rechtdoor");
-
-        return true;
+        debugMessage = "Go forward to tag";
+        Forward();
+        ESP32LedCrontrol(2);  // groen
+        returnValue = true;
       } else if (tagMap[i].leftTag == nextTagId) {
-        Serial.println("Ga linksaf");
-        return true;
+        debugMessage = "Go left to tag";
+        TurnLeft();
+        ESP32LedCrontrol(3);  // blauw
+        returnValue = true;
       } else if (tagMap[i].rightTag == nextTagId) {
-        Serial.println("Ga rechtsaf");
-
-        return true;
-      } else if (tagMap[i].backwardTag == nextTagId) {
-        Serial.println("Keer om");
-
-        return true;
+        debugMessage = "Go right to tag";
+        TurnRight();
+        returnValue = true;
+      } else if (tagMap[i].lastTagId == nextTagId) {
+        debugMessage = "Turn around for tag";
+        TurnAround();
+        ESP32LedCrontrol(5);  // paars
+        returnValue = true;
       } else {
-        Serial.println("Volgende tag niet verbonden aan dit kruispunt!");
-        return false;
+        debugMessage = "Next tag not connected to this intersection";
+        ESP32LedCrontrol(1);  // rood
+        returnValue = false;
       }
-    }
+    } 
   }
-  Serial.println("Huidige tag niet gevonden in kaart!");
-  return false;
+#if DEBUG && DEBUG_TAG_STEERING_DIRECTION
+  Serial.print("Direction on tag: ");
+  Serial.println(debugMessage);
+  Serial.println();
+#endif
+
+  return returnValue;
 }
 
 void rfidTagAction() {
+  String debugMessage;
   switch (iS) {
     case 0:
-      Serial.println("Tag intersection");
+      debugMessage = "Tag intersection";
       if (intersection(testRoute[routeCounter]))
         routeCounter++;
 
       break;
     case 1:
-      Serial.println("Tag station");
+      debugMessage = "Tag station";
+      if (intersection(testRoute[routeCounter]))
+        routeCounter++;
 
       break;
     default:
-      Serial.println("Tag action Unknown");
+      debugMessage = "Tag action Unknown";
   }
+#if DEBUG && TAG_ACTION
+  Serial.print("Tag action: ");
+  Serial.println(debugMessage);
+  Serial.println();
+#endif
 }
 
 
@@ -401,6 +497,8 @@ void setup() {
 
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
   rfid.PCD_Init();                                 // init MFRC522
+  //rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
+
 
   pinMode(ESP_RED_PIN, OUTPUT);
   pinMode(ESP_GREEN_PIN, OUTPUT);
@@ -411,26 +509,20 @@ void loop() {
   unsigned long currentMillis = millis();
   int Position = 0;
 
-  if (routeCounter == (sizeof(testRoute) + 1)) {
+  if (routeCounter == routeSize) {
     routeCounter = 0;
   }
-
 
   // mesh.                                          ();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
-
     if (readRFIDReader()) {
       if (formatRfidUid()) {
         rfidTagAction();
-        //Position = uidCheck(uid);  // Get position value from uidCheck
-        //ESP32LedCrontrol(Position);
-        //Stop();
-        //delay(5000);
-        //ESP32LedCrontrol(6969);
       }
     }
   }
+
   SensorCheck();
   if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
     Stop();
