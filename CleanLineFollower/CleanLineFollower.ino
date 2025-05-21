@@ -6,8 +6,7 @@ Scheduler userScheduler;
 painlessMesh mesh;
 
 // --------------------DEBUG --------------------------------------------------------
-
-#define DEBUG true              // Enable or disable all DEBUG prints
+#define DEBUG false             // Enable or disable all DEBUG prints
 #define DEBUG_RFID false        // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
 #define DEBUG_DRIVING false     // driving direct with sensor values.
@@ -177,7 +176,6 @@ int NormalAdjust = Speed;
 #define ESP32_LED_WHITE 9
 #define ESP32_LED_OFF 10
 
-
 #define UIDBYTE0 0
 #define UIDBYTE1 1
 #define UIDBYTE2 2
@@ -189,11 +187,20 @@ byte uidBytes[SIZE_UID];
 uint8_t iS;
 uint8_t sID;
 
+// Functiedeclaraties
+bool readRFIDReader();
+bool formatRfidUid();
+void tagActies();
+void readRfidTaskCallback();
+
+#define RFID_INTERVAL 100
+// === 1. RFID-leestaak definiëren ===
+Task taskReadRFID(RFID_INTERVAL, TASK_FOREVER, &readRfidTaskCallback);
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 
-unsigned long previousMillis = 0;  // Will store last time RFID is read
-const long interval = 200;         // Interval of reading RFID in milliseconds
+// unsigned long previousMillis = 0;  // Will store last time RFID is read
+// const long interval = 200;         // Interval of reading RFID in milliseconds
 
 // --- Motor functies ---
 void Stop() {
@@ -398,7 +405,7 @@ void ESP32LedCrontrol(int color) {
   }
 }
 bool intersection(uint16_t nextTagId) {
-  String debugMessage= "tag not found in bitmap";
+  String debugMessage = "tag not found in bitmap";
   bool returnValue;
   for (int i = 0; i < mapLength; i++) {
     if (tagMap[i].tagId == tagId && tagMap[i].lastTagId == oldTagId) {  //
@@ -426,7 +433,7 @@ bool intersection(uint16_t nextTagId) {
         ESP32LedCrontrol(1);  // rood
         returnValue = false;
       }
-    } 
+    }
   }
 #if DEBUG && DEBUG_TAG_STEERING_DIRECTION
   Serial.print("Direction on tag: ");
@@ -462,6 +469,13 @@ void rfidTagAction() {
 #endif
 }
 
+void readRfidTaskCallback() {
+  if (readRFIDReader()) {
+    if (formatRfidUid()) {
+      rfidTagAction();
+    }
+  }
+}
 
 void setup() {
   Serial.begin(115200);
@@ -497,7 +511,11 @@ void setup() {
 
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
   rfid.PCD_Init();                                 // init MFRC522
-  //rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
+  rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
+
+  userScheduler.addTask(taskReadRFID);
+  taskReadRFID.enable();
+
 
 
   pinMode(ESP_RED_PIN, OUTPUT);
@@ -506,22 +524,23 @@ void setup() {
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
+  // unsigned long currentMillis = millis();
   int Position = 0;
+  userScheduler.execute();
 
   if (routeCounter == routeSize) {
     routeCounter = 0;
   }
 
   // mesh.                                          ();
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-    if (readRFIDReader()) {
-      if (formatRfidUid()) {
-        rfidTagAction();
-      }
-    }
-  }
+  // if (currentMillis - previousMillis >= interval) {
+  //   previousMillis = currentMillis;
+  //   if (readRFIDReader()) {
+  //     if (formatRfidUid()) {
+  //       rfidTagAction();
+  //     }
+  //   }
+  // }
 
   SensorCheck();
   if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
