@@ -149,7 +149,10 @@ char routeCounter = 0;
 
 // Parameters
 int Speed = 220;
-int NormalAdjust = Speed;
+int NormalAdjust = 0;
+#define TURN_DELAY 500
+#define TURN_AROUND_DELAY 1000
+
 #define DISTANCE_THRESHOLD_CM 20
 #define TRIG_PULSE_DURATION_US 10
 #define TRIG_PULSE_DELAY_US 2
@@ -177,7 +180,6 @@ int NormalAdjust = Speed;
 #define ESP32_LED_WHITE 9
 #define ESP32_LED_OFF 10
 
-
 #define UIDBYTE0 0
 #define UIDBYTE1 1
 #define UIDBYTE2 2
@@ -189,11 +191,10 @@ byte uidBytes[SIZE_UID];
 uint8_t iS;
 uint8_t sID;
 
-
 MFRC522 rfid(SS_PIN, RST_PIN);
 
 unsigned long previousMillis = 0;  // Will store last time RFID is read
-const long interval = 200;         // Interval of reading RFID in milliseconds
+const long interval = 150;         // Interval of reading RFID in milliseconds
 
 // --- Motor functies ---
 void Stop() {
@@ -209,17 +210,17 @@ void Forward() {
 }
 
 void Left() {
-  digitalWrite(LEFT_MOTOR_DIR, FORWARD);
+  digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, Speed - NormalAdjust);
+  ledcWrite(LEFT_PWM_CHANNEL, NormalAdjust);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed);
 }
 
 void Right() {
   digitalWrite(LEFT_MOTOR_DIR, FORWARD);
-  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
+  digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
-  ledcWrite(RIGHT_PWM_CHANNEL, Speed - NormalAdjust);
+  ledcWrite(RIGHT_PWM_CHANNEL, NormalAdjust);
 }
 
 void TurnAround() {
@@ -227,15 +228,16 @@ void TurnAround() {
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  delay(1000);
+  delay(TURN_AROUND_DELAY);
 }
+
 
 void TurnLeft() {
   digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  delay(500);
+  delay(TURN_DELAY);
 }
 
 void TurnRight() {
@@ -243,7 +245,7 @@ void TurnRight() {
   digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
   ledcWrite(LEFT_PWM_CHANNEL, Speed);
   ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  delay(500);
+  delay(TURN_DELAY);
 }
 
 // --- Sensor functies ---
