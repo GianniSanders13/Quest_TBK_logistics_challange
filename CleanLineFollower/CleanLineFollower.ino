@@ -148,8 +148,8 @@ char routeCounter = 0;
 #define RIGHT_PWM_CHANNEL 1
 
 // Parameters
-int Speed = 220;
-int NormalAdjust = 0;
+int Speed = 255;
+int NormalAdjust = 00;
 #define TURN_DELAY 500
 #define TURN_AROUND_DELAY 1000
 
