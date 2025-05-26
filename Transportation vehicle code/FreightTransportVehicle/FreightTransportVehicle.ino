@@ -102,10 +102,10 @@ Message StoredMessage;
 bool NewStoredMessage = false;
 
 bool PizzariaStation = false;
-int F_Station = 0;
-int F_Amount = 0;
-int S_Station = 0;
-int S_Amount = 0;
+uint8_t F_Station = 0;
+uint8_t F_Amount = 0;
+uint8_t S_Station = 0;
+uint8_t S_Amount = 0;
 
 void OnDataReceive(const uint8_t *mac, const uint8_t *incomingData, int len) {
   memcpy(&IncomingMessage, incomingData, sizeof(IncomingMessage));
@@ -114,6 +114,7 @@ void OnDataReceive(const uint8_t *mac, const uint8_t *incomingData, int len) {
     if(PizzariaStation){
       NewStoredMessage = true;
       StoredMessage = IncomingMessage;
+      PizzariaStation = false;
     }
     else{
       NewStoredMessage = false;
@@ -429,7 +430,7 @@ void loop() {
   if(PizzariaStation){
     Stop();
     if(NewStoredMessage){
-      DecodeMessage();
+     DecodeMessage();
     }
   }
   else{
