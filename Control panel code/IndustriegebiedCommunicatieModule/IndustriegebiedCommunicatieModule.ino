@@ -25,6 +25,8 @@ Message IncomingMessage;
 Message OutgoingMessage;
 bool NewMessageReceived = false;
 int UserInput = 0;
+bool RestartLoop = false;
+
 int MaxCargo = 5;
 int Car = 0;
 
@@ -42,25 +44,31 @@ int ValidateInput(String Prompt, int MinimumValue, int MaximumValue) {
 
   while (!Valid) {
     Serial.println(Prompt);
-    while (Serial.available() == 0) {
-    }
+    while (Serial.available() == 0) {}
 
     Input = Serial.readStringUntil('\n');
-    bool IsNumber = true;
+    Input.trim();
 
+    if (Input == "q" || Input == "Q") {
+      RestartLoop = true;
+      return -1;
+    }
+    bool IsNumber = true;
     for (unsigned int i = 0; i < Input.length(); i++) {
       if (!isDigit(Input[i])) {
         IsNumber = false;
         break;
       }
     }
+
     if (!IsNumber) {
       Serial.println("Ongeldige waarde ingevoerd: voer een getal in!");
       continue;
     }
+
     Result = Input.toInt();
     if (Result < MinimumValue || Result > MaximumValue) {
-      Serial.print("Getal is niet van goede waarde: voer getal in tussen waarden ");
+      Serial.print("Getal is niet van goede waarde: voer getal in tussen ");
       Serial.print(MinimumValue);
       Serial.print(" en ");
       Serial.print(MaximumValue);
@@ -72,10 +80,10 @@ int ValidateInput(String Prompt, int MinimumValue, int MaximumValue) {
   return Result;
 }
 
+
 void CarChoice(){
-  //Serial.println("Vrachtwage 1 of 2?");
-  //while (Serial.available() == 0) {}
   UserInput = ValidateInput("Vrachtwagen 1 of 2?", 1, 2);
+  if (RestartLoop) return;
   Car = UserInput;
   Serial.print("Je hebt ingevuld:");
   Serial.println(Car);
@@ -86,6 +94,7 @@ void CarChoice(){
 void FirstStation(){
   bool error = false;
   UserInput = ValidateInput("Welk station?: Pepperoni (1) Deeg(2), tomaat(3), kaas(4) of kip(5)? ", 1, 5);
+  if (RestartLoop) return;
   Buf_F_Station = UserInput;
   Serial.print("Je hebt ingevuld: ");
   Serial.println(Buf_F_Station);
@@ -93,6 +102,7 @@ void FirstStation(){
 
 void FirstAmount(){
   UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3, 4 of 5", 1, 5);
+  if (RestartLoop) return;
   Buf_F_Amount = UserInput;
   Serial.print("Je hebt ingevuld: ");
   Serial.println(Buf_F_Amount);
@@ -104,6 +114,7 @@ void SecondStationAndAmount(){
     switch (Buf_F_Station) {
       case 1:
         UserInput = ValidateInput("Welk tweede station?: Deeg(2), tomaat(3), kaas(4) of kip(5)? ", 2, 5);
+        if (RestartLoop) return;
         Buf_S_Station = UserInput;
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
@@ -111,6 +122,7 @@ void SecondStationAndAmount(){
       break;
       case 2:
         UserInput = ValidateInput("Welk tweede station?: Tomaat(3), kaas(4) of kip(5)? ", 3, 5);
+        if (RestartLoop) return;
         Buf_S_Station = UserInput;
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
@@ -118,6 +130,7 @@ void SecondStationAndAmount(){
       break;
       case 3:
         UserInput = ValidateInput("Welk tweede station?: Kaas(4) of kip(5)? ", 4, 5);
+        if (RestartLoop) return;
         Buf_S_Station = UserInput;
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
@@ -125,6 +138,7 @@ void SecondStationAndAmount(){
       break;
       case 4:
         UserInput = ValidateInput("Wil je naar station kip?: Ja(1) of Nee(2)", 1, 2);
+        if (RestartLoop) return;
         Choice = UserInput;
         Serial.print("Je hebt ingevuld: ");
         if(Choice){
@@ -152,12 +166,15 @@ void SecondAmount(){
   switch (Buf_F_Amount) {
     case 1:
       UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3 of 4?", 1, 4);
+      if (RestartLoop) return;
       break;
     case 2:
       UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2 of 3?", 1, 3);
+      if (RestartLoop) return;
       break;
     case 3:
       UserInput = ValidateInput("Hoeveel wil je ophalen?: 1 of 2?", 1, 2);
+      if (RestartLoop) return;
       break;
     case 4:
       Serial.println("1 goed wordt opgehaald");
@@ -231,12 +248,17 @@ void setup() {
 }
 
 void loop() {
+  RestartLoop = false;
+
   Serial.println("================================");
   Serial.println("Industrie vrachtwagen controle: ");
-  CarChoice();
-  FirstStation();
-  FirstAmount();
-  SecondStationAndAmount();
+  Serial.println("Druk op q om het menu te herstellen");
+
+  CarChoice(); if (RestartLoop) return;
+  FirstStation(); if (RestartLoop) return;
+  FirstAmount(); if (RestartLoop) return;
+  SecondStationAndAmount(); if (RestartLoop) return;
+
   ShowPlanner();
   MakeMessage(Begin_Key_DEF,
               Buf_Dest_ID,
