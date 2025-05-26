@@ -5,6 +5,7 @@
 
 #define Own_ID_DEF 1
 #define Begin_Key_DEF 10
+#define Message_Kind_DEF 1
 #define End_Key_DEF 5
 
 uint8_t Mac1[] = {0x74, 0x4D, 0xBD, 0x77, 0x08, 0x1C};
@@ -252,7 +253,7 @@ void loop() {
 
   Serial.println("================================");
   Serial.println("Industrie vrachtwagen controle: ");
-  Serial.println("Druk op q om het menu te herstellen");
+  Serial.println("*Druk op q om het menu te herstellen*");
 
   CarChoice(); if (RestartLoop) return;
   FirstStation(); if (RestartLoop) return;
@@ -263,7 +264,7 @@ void loop() {
   MakeMessage(Begin_Key_DEF,
               Buf_Dest_ID,
               Own_ID_DEF,
-              1,
+              Message_Kind_DEF,
               Buf_F_Station,
               Buf_F_Amount,
               Buf_S_Station,
