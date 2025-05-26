@@ -1,12 +1,7 @@
-#include "painlessMesh.h"
 #include <SPI.h>
 #include <MFRC522.h>
 
-Scheduler userScheduler;
-painlessMesh mesh;
-
 // --------------------DEBUG --------------------------------------------------------
-
 #define DEBUG true              // Enable or disable all DEBUG prints
 #define DEBUG_RFID false        // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
@@ -15,6 +10,88 @@ painlessMesh mesh;
 #define TAG_ACTION true
 #define DEBUG_TAG_STEERING_DIRECTION true
 //------------------------------------------------------------------------------------
+
+// Ultrasoon
+#define TRIG_PIN 20
+#define ECHO_PIN 19
+
+// Sensors
+#define LEFT_SENSOR_PIN 17
+#define RIGHT_SENSOR_PIN 18
+
+// Motors
+#define LEFT_MOTOR 3
+#define LEFT_MOTOR_DIR 2
+#define RIGHT_MOTOR 11
+#define RIGHT_MOTOR_DIR 4
+
+// Motor direction
+#define FORWARD HIGH
+#define BACKWARD LOW
+
+// PWM instellingen
+#define PWM_FREQ 1000
+#define PWM_RES 8  // 0-255
+#define LEFT_PWM_CHANNEL 0
+#define RIGHT_PWM_CHANNEL 1
+
+// Parameters
+#define SPEED 220
+#define NORMALADJUST 50
+#define STEERING_SPEED 180
+#define TURN_AROUND_DELAY 1000
+#define TURN_DELAY 500
+
+// Ultrasoon variables
+#define DISTANCE_THRESHOLD_CM 20
+#define TRIG_PULSE_DURATION_US 10
+#define TRIG_PULSE_DELAY_US 2
+#define PULSE_TIMEOUT_US 30000
+
+
+// RFID Reader
+#define SCK_PIN 13   // Serial Clock (SCK)
+#define MISO_PIN 12  // Master In Slave Out (MISO)
+#define MOSI_PIN 8   // Master Out Slave In (MOSI)
+#define SS_PIN 10    // Slave Select (SS)
+#define RST_PIN 5
+
+//ESP32 ledcontrol
+#define ESP_RED_PIN 14
+#define ESP_GREEN_PIN 15
+#define ESP_BLUE_PIN 16
+// colors esp led
+#define ESP32_LED_RED 0
+#define ESP32_LED_ORANGE 1
+#define ESP32_LED_YELLOW 2
+#define ESP32_LED_GREEN 3
+#define ESP32_LED_LIGHTGREEN 4
+#define ESP32_LED_CYAN 5
+#define ESP32_LED_BLUE 6
+#define ESP32_LED_PURPLE 7
+#define ESP32_LED_PINK 8
+#define ESP32_LED_WHITE 9
+#define ESP32_LED_OFF 10
+
+// UID byte defines
+#define UIDBYTE0 0
+#define UIDBYTE1 1
+#define UIDBYTE2 2
+#define UIDBYTE3 3
+#define SIZE_UID 4
+byte uidBytes[SIZE_UID];
+
+// RFID format
+uint16_t tagId = 5;
+uint8_t iS;
+uint8_t sID;
+
+//RFID init
+MFRC522 rfid(SS_PIN, RST_PIN);
+
+unsigned long previousMillis = 0;  // Will store last time RFID is read
+const long interval = 200;         // Interval of reading RFID in milliseconds
+
 
 struct rfidMapStruct {
   uint16_t tagId;
@@ -28,7 +105,7 @@ uint16_t testRoute[] = { 15, 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11 };
 uint8_t routeSize = sizeof(testRoute) / sizeof(testRoute[0]);
 
 uint16_t oldTagId = 5;
-uint16_t tagId = 5;
+
 const int testRouteLength = sizeof(testRoute) / sizeof(testRoute[0]);
 
 rfidMapStruct tagMap[] = {
@@ -113,88 +190,8 @@ rfidMapStruct tagMap[] = {
   { 17, 10, 0, 9, 0 },
   { 17, 9, 0, 10, 0 }
 };
-
 const int mapLength = sizeof(tagMap) / sizeof(tagMap[0]);
-
 char routeCounter = 0;
-
-
-// Mesh instellingen
-#define MESH_NAME "Quest-Network"
-#define MESH_PASSWORD "Quest-Password"
-#define MESH_PORT 5555
-
-// Ultrasoon
-#define TRIG_PIN 20
-#define ECHO_PIN 19
-
-// Sensors
-#define LEFT_SENSOR_PIN 17
-#define RIGHT_SENSOR_PIN 18
-
-// Motors - jouw originele namen
-#define LEFT_MOTOR 3
-#define LEFT_MOTOR_DIR 2
-#define RIGHT_MOTOR 11
-#define RIGHT_MOTOR_DIR 4
-
-#define FORWARD HIGH
-#define BACKWARD LOW
-
-// PWM instellingen
-#define PWM_FREQ 1000
-#define PWM_RES 8  // 0-255
-#define LEFT_PWM_CHANNEL 0
-#define RIGHT_PWM_CHANNEL 1
-
-// Parameters
-int Speed = 220;
-int NormalAdjust = Speed;
-#define DISTANCE_THRESHOLD_CM 20
-#define TRIG_PULSE_DURATION_US 10
-#define TRIG_PULSE_DELAY_US 2
-#define PULSE_TIMEOUT_US 30000
-
-#define SCK_PIN 13   // Serial Clock (SCK)
-#define MISO_PIN 12  // Master In Slave Out (MISO)
-#define MOSI_PIN 8   // Master Out Slave In (MOSI)
-#define SS_PIN 10    // Slave Select (SS)
-#define RST_PIN 5
-
-#define ESP_RED_PIN 14
-#define ESP_GREEN_PIN 15
-#define ESP_BLUE_PIN 16
-
-#define ESP32_LED_RED 0
-#define ESP32_LED_ORANGE 1
-#define ESP32_LED_YELLOW 2
-#define ESP32_LED_GREEN 3
-#define ESP32_LED_LIGHTGREEN 4
-#define ESP32_LED_CYAN 5
-#define ESP32_LED_BLUE 6
-#define ESP32_LED_PURPLE 7
-#define ESP32_LED_PINK 8
-#define ESP32_LED_WHITE 9
-#define ESP32_LED_OFF 10
-
-
-#define UIDBYTE0 0
-#define UIDBYTE1 1
-#define UIDBYTE2 2
-#define UIDBYTE3 3
-
-#define SIZE_UID 4
-byte uidBytes[SIZE_UID];
-
-uint8_t iS;
-uint8_t sID;
-
-
-MFRC522 rfid(SS_PIN, RST_PIN);
-
-unsigned long previousMillis = 0;  // Will store last time RFID is read
-const long interval = 200;         // Interval of reading RFID in milliseconds
-
 // --- Motor functies ---
 void Stop() {
   ledcWrite(LEFT_PWM_CHANNEL, 0);
@@ -204,45 +201,45 @@ void Stop() {
 void Forward() {
   digitalWrite(LEFT_MOTOR_DIR, FORWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, Speed);
-  ledcWrite(RIGHT_PWM_CHANNEL, Speed);
+  ledcWrite(LEFT_PWM_CHANNEL, SPEED);
+  ledcWrite(RIGHT_PWM_CHANNEL, SPEED);
 }
 
 void Left() {
-  digitalWrite(LEFT_MOTOR_DIR, FORWARD);
+  digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, Speed - NormalAdjust);
-  ledcWrite(RIGHT_PWM_CHANNEL, Speed);
+  ledcWrite(LEFT_PWM_CHANNEL, NORMALADJUST);
+  ledcWrite(RIGHT_PWM_CHANNEL, STEERING_SPEED);
 }
 
 void Right() {
   digitalWrite(LEFT_MOTOR_DIR, FORWARD);
-  digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, Speed);
-  ledcWrite(RIGHT_PWM_CHANNEL, Speed - NormalAdjust);
+  digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
+  ledcWrite(LEFT_PWM_CHANNEL, STEERING_SPEED);
+  ledcWrite(RIGHT_PWM_CHANNEL, NORMALADJUST);
 }
 
 void TurnAround() {
   digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, Speed);
-  ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  delay(1000);
+  ledcWrite(LEFT_PWM_CHANNEL, SPEED);
+  ledcWrite(RIGHT_PWM_CHANNEL, SPEED);
+  delay(TURN_AROUND_DELAY);
 }
 
 void TurnLeft() {
   digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, Speed);
-  ledcWrite(RIGHT_PWM_CHANNEL, Speed);
-  delay(500);
+  ledcWrite(LEFT_PWM_CHANNEL, SPEED);
+  ledcWrite(RIGHT_PWM_CHANNEL, SPEED);
+  delay(TURN_DELAY);
 }
 
 void TurnRight() {
   digitalWrite(LEFT_MOTOR_DIR, FORWARD);
   digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, Speed);
-  ledcWrite(RIGHT_PWM_CHANNEL, Speed);
+  ledcWrite(LEFT_PWM_CHANNEL, SPEED);
+  ledcWrite(RIGHT_PWM_CHANNEL, SPEED);
   delay(500);
 }
 
@@ -398,7 +395,7 @@ void ESP32LedCrontrol(int color) {
   }
 }
 bool intersection(uint16_t nextTagId) {
-  String debugMessage= "tag not found in bitmap";
+  String debugMessage = "tag not found in bitmap";
   bool returnValue;
   for (int i = 0; i < mapLength; i++) {
     if (tagMap[i].tagId == tagId && tagMap[i].lastTagId == oldTagId) {  //
@@ -426,7 +423,7 @@ bool intersection(uint16_t nextTagId) {
         ESP32LedCrontrol(1);  // rood
         returnValue = false;
       }
-    } 
+    }
   }
 #if DEBUG && DEBUG_TAG_STEERING_DIRECTION
   Serial.print("Direction on tag: ");
@@ -467,19 +464,6 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("Initiate");
-
-  mesh.setDebugMsgTypes(ERROR | STARTUP);
-  mesh.init(MESH_NAME, MESH_PASSWORD, &userScheduler, MESH_PORT);
-  mesh.onNewConnection([](uint32_t nodeId) {
-    Serial.printf("New Connection, nodeId = %u\n", nodeId);
-  });
-  mesh.onChangedConnections([]() {
-    Serial.println("Connections changed");
-  });
-  mesh.onNodeTimeAdjusted([](int32_t offset) {
-    Serial.printf("Time adjusted by %d\n", offset);
-  });
-
   // Pins
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
@@ -498,7 +482,6 @@ void setup() {
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
   rfid.PCD_Init();                                 // init MFRC522
   //rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
-
 
   pinMode(ESP_RED_PIN, OUTPUT);
   pinMode(ESP_GREEN_PIN, OUTPUT);

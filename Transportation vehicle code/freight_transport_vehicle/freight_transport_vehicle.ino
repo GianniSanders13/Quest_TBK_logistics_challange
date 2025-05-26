@@ -4,7 +4,6 @@
 
 Scheduler userScheduler;
 painlessMesh mesh;
-
 // --------------------DEBUG --------------------------------------------------------
 
 #define DEBUG true              // Enable or disable all DEBUG prints
