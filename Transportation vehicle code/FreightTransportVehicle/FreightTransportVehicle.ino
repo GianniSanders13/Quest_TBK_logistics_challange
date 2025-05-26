@@ -1,25 +1,21 @@
-#include "painlessMesh.h"
+#include <esp_now.h>
+#include <WiFi.h>
 #include <SPI.h>
 #include <MFRC522.h>
-
-Scheduler userScheduler;
-painlessMesh mesh;
 
 // --------------------DEBUG --------------------------------------------------------
 
 #define DEBUG true              // Enable or disable all DEBUG prints
-#define DEBUG_RFID false        // RFID reader debug (what the readers received)
+#define DEBUG_RFID true        // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
 #define DEBUG_DRIVING false     // driving direct with sensor values.
 #define DEBUG_FORMAT false
 #define TAG_ACTION true
 //------------------------------------------------------------------------------------
 
-// Mesh instellingen
-#define MESH_NAME "Quest-Network"
-#define MESH_PASSWORD "Quest-Password"
-#define MESH_PORT 5555
-
+#define Own_ID_DEF 3
+#define Begin_Key_DEF 10
+#define End_Key_DEF 5
 // Ultrasoon
 #define TRIG_PIN 20
 #define ECHO_PIN 19
@@ -73,7 +69,6 @@ int NormalAdjust = Speed;
 #define ESP32_LED_WHITE 9
 #define ESP32_LED_OFF 10
 
-
 #define UIDBYTE0 0
 #define UIDBYTE1 1
 #define UIDBYTE2 2
@@ -85,11 +80,91 @@ uint16_t tagId;
 uint8_t iS;
 uint8_t sID;
 
-
 MFRC522 rfid(SS_PIN, RST_PIN);
 
 unsigned long previousMillis = 0;  // Will store last time RFID is read
 const long interval = 200;         // Interval of reading RFID in milliseconds
+
+typedef struct Message {
+  uint8_t Begin_Key;
+  uint8_t Dest_ID;
+  uint8_t Source_ID;
+  uint8_t Message_Kind;
+  uint8_t Data1;
+  uint8_t Data2;
+  uint8_t Data3;
+  uint8_t Data4;
+  uint8_t End_Key;
+} Message;
+
+Message IncomingMessage;
+Message StoredMessage;
+bool NewStoredMessage = false;
+
+bool PizzariaStation = false;
+int F_Station = 0;
+int F_Amount = 0;
+int S_Station = 0;
+int S_Amount = 0;
+
+void OnDataReceive(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  memcpy(&IncomingMessage, incomingData, sizeof(IncomingMessage));
+  Serial.println("Bericht ontvangen:");
+  if (IncomingMessage.Begin_Key == Begin_Key_DEF && IncomingMessage.End_Key == End_Key_DEF) {
+    if(PizzariaStation){
+      NewStoredMessage = true;
+      StoredMessage = IncomingMessage;
+    }
+    else{
+      NewStoredMessage = false;
+    }
+    Serial.printf("Van: %d -> Voor: %d\n", IncomingMessage.Source_ID, IncomingMessage.Dest_ID);
+    Serial.printf("Type: %d\n", IncomingMessage.Message_Kind);
+    Serial.printf("Eerste station: %d, Hoeveel: %d\n", IncomingMessage.Data1, IncomingMessage.Data2);
+    Serial.printf("Tweede station: %d, Hoeveel: %d\n", IncomingMessage.Data3, IncomingMessage.Data4);
+  } else {
+    Serial.println("Ongeldig berichtformaat");
+  }
+}
+
+void DecodeMessage(){
+  switch(StoredMessage.Data1){
+    case 0:
+      F_Station = 0;
+      break;
+    case 1:
+      F_Station = 9;
+      break;
+    case 2:
+      F_Station = 10;
+      break;
+    case 3:
+      F_Station = 11;
+      break;
+    default:
+      F_Station = 0;
+      break;
+  }
+  F_Amount = StoredMessage.Data2;
+  switch(StoredMessage.Data3){
+    case 0:
+      S_Station = 0;
+      break;
+    case 1:
+      S_Station = 9;
+      break;
+    case 2:
+      S_Station = 10;
+      break;
+    case 3:
+      S_Station = 11;
+      break;
+    default:
+      S_Station = 0;
+      break;
+  }
+  S_Amount = StoredMessage.Data4;
+}
 
 // --- Motor functies ---
 void Stop() {
@@ -239,70 +314,71 @@ bool formatRfidUid() {
   return true;
 }
 
-void ESP32LedCrontrol(int color) {
-  switch (color) {
-    case 0:  // UIT
-      digitalWrite(ESP_RED_PIN, HIGH);
-      digitalWrite(ESP_GREEN_PIN, HIGH);
-      digitalWrite(ESP_BLUE_PIN, HIGH);
-      break;
-
-    case 1:  // ROOD
-      digitalWrite(ESP_RED_PIN, LOW);
-      digitalWrite(ESP_GREEN_PIN, HIGH);
-      digitalWrite(ESP_BLUE_PIN, HIGH);
-      break;
-
-    case 2:  // GROEN
-      digitalWrite(ESP_RED_PIN, HIGH);
-      digitalWrite(ESP_GREEN_PIN, LOW);
-      digitalWrite(ESP_BLUE_PIN, HIGH);
-      break;
-
-    case 3:  // BLAUW
-      digitalWrite(ESP_RED_PIN, HIGH);
-      digitalWrite(ESP_GREEN_PIN, HIGH);
-      digitalWrite(ESP_BLUE_PIN, LOW);
-      break;
-
-    case 4:  // GEEL (rood + groen)
-      digitalWrite(ESP_RED_PIN, LOW);
-      digitalWrite(ESP_GREEN_PIN, LOW);
-      digitalWrite(ESP_BLUE_PIN, HIGH);
-      break;
-
-    case 5:  // MAGENTA (rood + blauw)
-      digitalWrite(ESP_RED_PIN, LOW);
-      digitalWrite(ESP_GREEN_PIN, HIGH);
-      digitalWrite(ESP_BLUE_PIN, LOW);
-      break;
-
-    case 6:  // CYAAN (groen + blauw)
-      digitalWrite(ESP_RED_PIN, HIGH);
-      digitalWrite(ESP_GREEN_PIN, LOW);
-      digitalWrite(ESP_BLUE_PIN, LOW);
-      break;
-
-    case 7:  // WIT (rood + groen + blauw)
-      digitalWrite(ESP_RED_PIN, LOW);
-      digitalWrite(ESP_GREEN_PIN, LOW);
-      digitalWrite(ESP_BLUE_PIN, LOW);
-      break;
-  }
-}
-
 void rfidTagAction() {
   String debugMessage;
-  switch (SD) {
-    case 0:
-      debugMessage = "Tag intersection";
-      break;
-    case 1:
-      debugMessage = "Tag station";
-      break;
-    default:
-      debugMessage = "Tag action Unknown";
+  if(sID == F_Station){
+    switch(F_Amount){
+      case 0:
+        Stop();
+        break;
+      case 1:
+        Stop();
+        delay(1000);
+        break;
+      case 2:
+        Stop();
+        delay(2000);
+        break;
+      case 3:
+        Stop();
+        delay(3000);
+        break;
+      case 4:
+        Stop();
+        delay(4000);
+        break;
+      case 5:
+        Stop();
+        delay(5000);
+        break;
+      default:
+        Stop();
+        break;  
+    }
   }
+  if(sID == S_Station){
+    switch(S_Amount){
+      case 0:
+        Stop();
+        break;
+      case 1:
+        Stop();
+        delay(1000);
+        break;
+      case 2:
+        Stop();
+        delay(2000);
+        break;
+      case 3:
+        Stop();
+        delay(3000);
+        break;
+      case 4:
+        Stop();
+        delay(4000);
+        break;
+      default:
+        Stop();
+        break;  
+    }
+  }
+  if(sID == 7){
+    PizzariaStation = true;
+  } else{
+    PizzariaStation = false;
+  }
+
+
 #if DEBUG && TAG_ACTION
   Serial.print("Tag action: ");
   Serial.println(debugMessage);
@@ -310,23 +386,19 @@ void rfidTagAction() {
 #endif
 }
 
-
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  Serial.println("Initiate");
+  WiFi.mode(WIFI_STA);
+  Serial.println("Ontvanger gestart");
+  Serial.print("MAC adres ontvanger: ");
+  Serial.println(WiFi.macAddress());
 
-  mesh.setDebugMsgTypes(ERROR | STARTUP);
-  mesh.init(MESH_NAME, MESH_PASSWORD, &userScheduler, MESH_PORT);
-  mesh.onNewConnection([](uint32_t nodeId) {
-    Serial.printf("New Connection, nodeId = %u\n", nodeId);
-  });
-  mesh.onChangedConnections([]() {
-    Serial.println("Connections changed");
-  });
-  mesh.onNodeTimeAdjusted([](int32_t offset) {
-    Serial.printf("Time adjusted by %d\n", offset);
-  });
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW init mislukt");
+    return;
+  }
+
+  esp_now_register_recv_cb(OnDataReceive);
 
   // Pins
   pinMode(TRIG_PIN, OUTPUT);
@@ -354,20 +426,26 @@ void setup() {
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
-
-  // mesh.                                          ();
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-    if (readRFIDReader()) {
-      if (formatRfidUid()) {
-        rfidTagAction();
-      }
+  if(PizzariaStation){
+    Stop();
+    if(NewStoredMessage){
+      DecodeMessage();
     }
   }
-
-  SensorCheck();
-  if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
-    Stop();
+  else{
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+      previousMillis = currentMillis;
+      if (readRFIDReader()) {
+        if (formatRfidUid()) {
+          rfidTagAction();
+        }
+      }
+    }
+    Serial.println("Rijden!");
+    SensorCheck();
+    if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
+      Stop();
+    }
   }
 }
