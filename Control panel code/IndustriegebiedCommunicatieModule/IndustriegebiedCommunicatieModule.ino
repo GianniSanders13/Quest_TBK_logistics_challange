@@ -24,7 +24,7 @@ typedef struct Message {
 Message IncomingMessage;
 Message OutgoingMessage;
 bool NewMessageReceived = false;
-String UserInput = "";
+int UserInput = 0;
 int MaxCargo = 5;
 int Car = 0;
 
@@ -35,11 +35,48 @@ int Buf_F_Amount = 0;
 int Buf_S_Station = 0;
 int Buf_S_Amount = 0;
 
+int ValidateInput(String Prompt, int MinimumValue, int MaximumValue) {
+  String Input;
+  int Result = 0;
+  bool Valid = false;
+
+  while (!Valid) {
+    Serial.println(Prompt);
+    while (Serial.available() == 0) {
+    }
+
+    Input = Serial.readStringUntil('\n');
+    bool IsNumber = true;
+
+    for (unsigned int i = 0; i < Input.length(); i++) {
+      if (!isDigit(Input[i])) {
+        IsNumber = false;
+        break;
+      }
+    }
+    if (!IsNumber) {
+      Serial.println("Ongeldige waarde ingevoerd: voer een getal in!");
+      continue;
+    }
+    Result = Input.toInt();
+    if (Result < MinimumValue || Result > MaximumValue) {
+      Serial.print("Getal is niet van goede waarde: voer getal in tussen waarden ");
+      Serial.print(MinimumValue);
+      Serial.print(" en ");
+      Serial.print(MaximumValue);
+      Serial.println(".");
+    } else {
+      Valid = true;
+    }
+  }
+  return Result;
+}
+
 void CarChoice(){
-  Serial.println("Vrachtwage 1 of 2?");
-  while (Serial.available() == 0) {}
-  UserInput = Serial.readStringUntil('\n');
-  Car = UserInput.toInt();
+  //Serial.println("Vrachtwage 1 of 2?");
+  //while (Serial.available() == 0) {}
+  UserInput = ValidateInput("Vrachtwagen 1 of 2?", 1, 2);
+  Car = UserInput;
   Serial.print("Je hebt ingevuld:");
   Serial.println(Car);
   if (Car == 1) Buf_Dest_ID = 3;
@@ -48,19 +85,15 @@ void CarChoice(){
 
 void FirstStation(){
   bool error = false;
-  Serial.println("Welk station?: Pepperoni (1) Deeg(2), tomaat(3), kaas(4) of kip(5)? ");
-  while (Serial.available() == 0) {}
-  UserInput = Serial.readStringUntil('\n');
-  Buf_F_Station = UserInput.toInt();
+  UserInput = ValidateInput("Welk station?: Pepperoni (1) Deeg(2), tomaat(3), kaas(4) of kip(5)? ", 1, 5);
+  Buf_F_Station = UserInput;
   Serial.print("Je hebt ingevuld: ");
   Serial.println(Buf_F_Station);
 }
 
 void FirstAmount(){
-  Serial.println("Hoeveel wil je ophalen?: 1, 2, 3, 4 of 5");
-  while (Serial.available() == 0) {}
-  UserInput = Serial.readStringUntil('\n');
-  Buf_F_Amount = UserInput.toInt();
+  UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3, 4 of 5", 1, 5);
+  Buf_F_Amount = UserInput;
   Serial.print("Je hebt ingevuld: ");
   Serial.println(Buf_F_Amount);
 }
@@ -70,37 +103,29 @@ void SecondStationAndAmount(){
   if(MaxCargo - Buf_F_Amount > 0) {
     switch (Buf_F_Station) {
       case 1:
-        Serial.println("Welk tweede station?: Deeg(2), tomaat(3), kaas(4) of kip(5)? ");
-        while (Serial.available() == 0) {}
-        UserInput = Serial.readStringUntil('\n');
-        Buf_S_Station = UserInput.toInt();
+        UserInput = ValidateInput("Welk tweede station?: Deeg(2), tomaat(3), kaas(4) of kip(5)? ", 2, 5);
+        Buf_S_Station = UserInput;
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
         SecondAmount();
       break;
       case 2:
-        Serial.println("Welk tweede station?: Tomaat(3), kaas(4) of kip(5)? ");
-        while (Serial.available() == 0) {}
-        UserInput = Serial.readStringUntil('\n');
-        Buf_S_Station = UserInput.toInt();
+        UserInput = ValidateInput("Welk tweede station?: Tomaat(3), kaas(4) of kip(5)? ", 3, 5);
+        Buf_S_Station = UserInput;
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
         SecondAmount();
       break;
       case 3:
-        Serial.println("Welk tweede station?: Kaas(4) of kip(5)? ");
-        while (Serial.available() == 0) {}
-        UserInput = Serial.readStringUntil('\n');
-        Buf_S_Station = UserInput.toInt();
+        UserInput = ValidateInput("Welk tweede station?: Kaas(4) of kip(5)? ", 4, 5);
+        Buf_S_Station = UserInput;
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
         SecondAmount();
       break;
       case 4:
-        Serial.println("Wil je naar station kip?: Ja(1) of Nee(2)");
-        while (Serial.available() == 0) {}
-        UserInput = Serial.readStringUntil('\n');
-        Choice = UserInput.toInt();
+        UserInput = ValidateInput("Wil je naar station kip?: Ja(1) of Nee(2)", 1, 2);
+        Choice = UserInput;
         Serial.print("Je hebt ingevuld: ");
         if(Choice){
           Buf_S_Station = 5;
@@ -126,22 +151,20 @@ void SecondStationAndAmount(){
 void SecondAmount(){
   switch (Buf_F_Amount) {
     case 1:
-      Serial.println("Hoeveel wil je ophalen?: 1, 2, 3 of 4?");
+      UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3 of 4?", 1, 4);
       break;
     case 2:
-      Serial.println("Hoeveel wil je ophalen?: 1, 2 of 3?");
+      UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2 of 3?", 1, 3);
       break;
     case 3:
-      Serial.println("Hoeveel wil je ophalen?: 1 of 2?");
+      UserInput = ValidateInput("Hoeveel wil je ophalen?: 1 of 2?", 1, 2);
       break;
     case 4:
       Serial.println("1 goed wordt opgehaald");
       Buf_S_Amount = 1;
       return;
   }
-  while (Serial.available() == 0) {}
-  UserInput = Serial.readStringUntil('\n');
-  Buf_S_Amount = UserInput.toInt();
+  Buf_S_Amount = UserInput;
   Serial.print("Je hebt ingevuld: ");
   Serial.println(Buf_S_Amount);
 }
@@ -170,19 +193,7 @@ void OnDataReceive(const uint8_t * MacAdress, const uint8_t *IncomingBytes, int 
            MacAdress[0], MacAdress[1], MacAdress[2], MacAdress[3], MacAdress[4], MacAdress[5]);
   Serial.println("Iets ontvangen");
   NewMessageReceived = true;
-
-
  memcpy(&IncomingMessage, IncomingBytes, sizeof(IncomingMessage));
-
-  Serial.println(IncomingMessage.Begin_Key);
-  Serial.println(IncomingMessage.Dest_ID);
-  Serial.println(IncomingMessage.Source_ID);
-  Serial.println(IncomingMessage.Message_Kind);
-  Serial.print("Data1: "); Serial.println(IncomingMessage.Data1);
-  Serial.print("Data2: "); Serial.println(IncomingMessage.Data2);
-  Serial.print("Data3: "); Serial.println(IncomingMessage.Data3);
-  Serial.print("Data4: "); Serial.println(IncomingMessage.Data4);
-  Serial.println(IncomingMessage.End_Key);
 }
 
 void MakeMessage(int b, int d, int s, int m, int fs, int fa, int ss, int sa, int e){
@@ -199,6 +210,7 @@ void MakeMessage(int b, int d, int s, int m, int fs, int fa, int ss, int sa, int
 
 void setup() {
   Serial.begin(115200);
+  delay(3000);
   WiFi.mode(WIFI_STA);
 
   if (esp_now_init() != ESP_OK) {
