@@ -134,13 +134,19 @@ void DecodeMessage(){
       F_Station = 0;
       break;
     case 1:
-      F_Station = 9;
+      F_Station = 8;
       break;
     case 2:
-      F_Station = 10;
+      F_Station = 9;
       break;
     case 3:
+      F_Station = 10;
+      break;
+    case 4:
       F_Station = 11;
+      break;
+    case 5:
+      F_Station = 12;
       break;
     default:
       F_Station = 0;
@@ -152,13 +158,19 @@ void DecodeMessage(){
       S_Station = 0;
       break;
     case 1:
-      S_Station = 9;
+      S_Station = 8;
       break;
     case 2:
-      S_Station = 10;
+      S_Station = 9;
       break;
     case 3:
+      S_Station = 10;
+      break;
+    case 4:
       S_Station = 11;
+      break;
+    case 5:
+      S_Station = 12;
       break;
     default:
       S_Station = 0;

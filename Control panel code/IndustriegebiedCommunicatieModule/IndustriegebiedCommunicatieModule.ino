@@ -47,7 +47,8 @@ void CarChoice(){
 }
 
 void FirstStation(){
-  Serial.println("Welk station?: Deeg(1), tomaat(2) of kaas(3)? ");
+  bool error = false;
+  Serial.println("Welk station?: Pepperoni (1) Deeg(2), tomaat(3), kaas(4) of kip(5)? ");
   while (Serial.available() == 0) {}
   UserInput = Serial.readStringUntil('\n');
   Buf_F_Station = UserInput.toInt();
@@ -69,7 +70,7 @@ void SecondStationAndAmount(){
   if(MaxCargo - Buf_F_Amount > 0) {
     switch (Buf_F_Station) {
       case 1:
-        Serial.println("Welk tweede station?: Tomaat(2) of kaas(3)? ");
+        Serial.println("Welk tweede station?: Deeg(2), tomaat(3), kaas(4) of kip(5)? ");
         while (Serial.available() == 0) {}
         UserInput = Serial.readStringUntil('\n');
         Buf_S_Station = UserInput.toInt();
@@ -78,16 +79,38 @@ void SecondStationAndAmount(){
         SecondAmount();
       break;
       case 2:
-        Serial.println("Wil je naar station kaas?: Ja(1) of nee(2)? ");
+        Serial.println("Welk tweede station?: Tomaat(3), kaas(4) of kip(5)? ");
+        while (Serial.available() == 0) {}
+        UserInput = Serial.readStringUntil('\n');
+        Buf_S_Station = UserInput.toInt();
+        Serial.print("Je hebt ingevuld: ");
+        Serial.println(Buf_S_Station);
+        SecondAmount();
+      break;
+      case 3:
+        Serial.println("Welk tweede station?: Kaas(4) of kip(5)? ");
+        while (Serial.available() == 0) {}
+        UserInput = Serial.readStringUntil('\n');
+        Buf_S_Station = UserInput.toInt();
+        Serial.print("Je hebt ingevuld: ");
+        Serial.println(Buf_S_Station);
+        SecondAmount();
+      break;
+      case 4:
+        Serial.println("Wil je naar station kip?: Ja(1) of Nee(2)");
         while (Serial.available() == 0) {}
         UserInput = Serial.readStringUntil('\n');
         Choice = UserInput.toInt();
         Serial.print("Je hebt ingevuld: ");
-        Serial.println(Choice);
-        Buf_S_Station = (Choice == 1) ? 3 : 0;
+        if(Choice){
+          Buf_S_Station = 5;
+        } else{
+          Buf_S_Station = 0;
+        }
+        Serial.println(Buf_S_Station);
         SecondAmount();
       break;
-      case 3:
+      case 5:
         Serial.println("Geen volgende station mogelijk!");
         Buf_S_Station = 0;
         Buf_S_Amount = 0;
