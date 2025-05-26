@@ -36,11 +36,11 @@
 #define RIGHT_PWM_CHANNEL 1
 
 // Parameters
-#define SPEED 220
-#define NORMALADJUST 50
-#define STEERING_SPEED 180
-#define TURN_AROUND_DELAY 1000
-#define TURN_DELAY 500
+#define SPEED 255
+#define NORMALADJUST 0
+#define STEERING_SPEED 220
+#define TURN_AROUND_DELAY 1150
+#define TURN_DELAY 550
 
 // Ultrasoon variables
 #define DISTANCE_THRESHOLD_CM 20
@@ -222,25 +222,25 @@ void Right() {
 void TurnAround() {
   digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, SPEED);
-  ledcWrite(RIGHT_PWM_CHANNEL, SPEED);
+  ledcWrite(LEFT_PWM_CHANNEL, STEERING_SPEED);
+  ledcWrite(RIGHT_PWM_CHANNEL, STEERING_SPEED);
   delay(TURN_AROUND_DELAY);
 }
 
 void TurnLeft() {
   digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, SPEED);
-  ledcWrite(RIGHT_PWM_CHANNEL, SPEED);
+  ledcWrite(LEFT_PWM_CHANNEL, STEERING_SPEED);
+  ledcWrite(RIGHT_PWM_CHANNEL, STEERING_SPEED);
   delay(TURN_DELAY);
 }
 
 void TurnRight() {
   digitalWrite(LEFT_MOTOR_DIR, FORWARD);
   digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
-  ledcWrite(LEFT_PWM_CHANNEL, SPEED);
-  ledcWrite(RIGHT_PWM_CHANNEL, SPEED);
-  delay(500);
+  ledcWrite(LEFT_PWM_CHANNEL, STEERING_SPEED);
+  ledcWrite(RIGHT_PWM_CHANNEL, STEERING_SPEED);
+  delay(TURN_DELAY);
 }
 
 // --- Sensor functies ---
@@ -438,12 +438,14 @@ void rfidTagAction() {
   String debugMessage;
   switch (iS) {
     case 0:
+      Stop();
       debugMessage = "Tag intersection";
       if (intersection(testRoute[routeCounter]))
         routeCounter++;
 
       break;
     case 1:
+      Stop();
       debugMessage = "Tag station";
       if (intersection(testRoute[routeCounter]))
         routeCounter++;
