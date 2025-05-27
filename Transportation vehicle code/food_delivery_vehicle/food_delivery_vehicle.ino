@@ -14,8 +14,13 @@
 // Ultrasoon
 #define TRIG_PIN 20
 #define ECHO_PIN 19
+// Ultrasoon variables
+#define DISTANCE_THRESHOLD_CM 20
+#define TRIG_PULSE_DURATION_US 10
+#define TRIG_PULSE_DELAY_US 2
+#define PULSE_TIMEOUT_US 30000
 
-// Sensors
+// Line sensors
 #define LEFT_SENSOR_PIN 17
 #define RIGHT_SENSOR_PIN 18
 
@@ -29,32 +34,25 @@
 #define FORWARD HIGH
 #define BACKWARD LOW
 
-// PWM instellingen
+// PWM motor settings
 #define PWM_FREQ 1000
 #define PWM_RES 8  // 0-255
 #define LEFT_PWM_CHANNEL 0
 #define RIGHT_PWM_CHANNEL 1
 
-// Parameters
-#define SPEED 255
+// Motor control settings
+#define SPEED 230
 #define NORMALADJUST 0
 #define STEERING_SPEED 220
 #define TURN_AROUND_DELAY 1150
 #define TURN_DELAY 550
-
-// Ultrasoon variables
-#define DISTANCE_THRESHOLD_CM 20
-#define TRIG_PULSE_DURATION_US 10
-#define TRIG_PULSE_DELAY_US 2
-#define PULSE_TIMEOUT_US 30000
-
 
 // RFID Reader
 #define SCK_PIN 13   // Serial Clock (SCK)
 #define MISO_PIN 12  // Master In Slave Out (MISO)
 #define MOSI_PIN 8   // Master Out Slave In (MOSI)
 #define SS_PIN 10    // Slave Select (SS)
-#define RST_PIN 5
+#define RST_PIN 5    // Reset pin
 
 //ESP32 ledcontrol
 #define ESP_RED_PIN 14
@@ -85,14 +83,16 @@ byte uidBytes[SIZE_UID];
 uint16_t tagId = 5;
 uint8_t iS;
 uint8_t sID;
+uint16_t oldTagId = 5;
 
 //RFID init
 MFRC522 rfid(SS_PIN, RST_PIN);
 
+// timing for RFID reader
 unsigned long previousMillis = 0;  // Will store last time RFID is read
 const long interval = 200;         // Interval of reading RFID in milliseconds
 
-
+// RFID maping structure
 struct rfidMapStruct {
   uint16_t tagId;
   uint16_t lastTagId;
@@ -100,15 +100,9 @@ struct rfidMapStruct {
   uint16_t straightTag;
   uint16_t rightTag;
 };
-
-uint16_t testRoute[] = { 15, 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11 };
-uint8_t routeSize = sizeof(testRoute) / sizeof(testRoute[0]);
-
-uint16_t oldTagId = 5;
-
-const int testRouteLength = sizeof(testRoute) / sizeof(testRoute[0]);
-
+ // RFID tag map 
 rfidMapStruct tagMap[] = {
+  // Intersections
   // Tag 1
   { 1, 16, 2, 0, 6 },
   { 1, 6, 16, 2, 0 },
@@ -165,7 +159,8 @@ rfidMapStruct tagMap[] = {
   { 11, 15, 5, 0, 16 },
   { 11, 5, 0, 16, 15 },
 
-  // Tag 12 (blauw station)
+  // stations
+  // Tag 12
   { 12, 2, 0, 3, 0 },
   { 12, 3, 0, 2, 0 },
 
@@ -189,9 +184,87 @@ rfidMapStruct tagMap[] = {
   // Tag 17 (blauw station)
   { 17, 10, 0, 9, 0 },
   { 17, 9, 0, 10, 0 }
+  
 };
+
 const int mapLength = sizeof(tagMap) / sizeof(tagMap[0]);
 char routeCounter = 0;
+
+uint16_t testRoute[] = { 15, 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11 }; // for testing 
+uint8_t routeSize = sizeof(testRoute) / sizeof(testRoute[0]);
+
+// --- Motor functies ---
+void Stop();
+void Forward();
+void Left();
+void Right();
+void TurnAround();
+void TurnLeft();
+void TurnRight();
+
+// --- Sensor functies ---
+int Ultrasoon_Check();
+void SensorCheck();
+
+// --- RFID functies ---
+bool readRFIDReader();
+bool formatRfidUid();
+
+// --- ESP32 LED control ---
+void ESP32LedCrontrol(int color);
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("Initiate");
+  // Pins
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(LEFT_SENSOR_PIN, INPUT);
+  pinMode(RIGHT_SENSOR_PIN, INPUT);
+  pinMode(LEFT_MOTOR_DIR, OUTPUT);
+  pinMode(RIGHT_MOTOR_DIR, OUTPUT);
+
+  // PWM setup met jouw pinnen
+  ledcSetup(LEFT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
+  ledcAttachPin(LEFT_MOTOR, LEFT_PWM_CHANNEL);
+
+  ledcSetup(RIGHT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
+  ledcAttachPin(RIGHT_MOTOR, RIGHT_PWM_CHANNEL);
+
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
+  rfid.PCD_Init();                                 // init MFRC522
+  //rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
+
+  pinMode(ESP_RED_PIN, OUTPUT);
+  pinMode(ESP_GREEN_PIN, OUTPUT);
+  pinMode(ESP_BLUE_PIN, OUTPUT);
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+  int Position = 0;
+
+  if (routeCounter == routeSize) {
+    routeCounter = 0;
+  }
+
+  // mesh.                                          ();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    if (readRFIDReader()) {
+      if (formatRfidUid()) {
+        rfidTagAction();
+      }
+    }
+  }
+
+  SensorCheck();
+  if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
+    Stop();
+  }
+}
+
 // --- Motor functies ---
 void Stop() {
   ledcWrite(LEFT_PWM_CHANNEL, 0);
@@ -294,55 +367,6 @@ void SensorCheck() {
 #endif
 }
 
-bool readRFIDReader() {
-  // byte uidSize = rfid.uid.size;
-  if (rfid.PICC_IsNewCardPresent()) {
-    if (rfid.PICC_ReadCardSerial()) {
-      for (int i = 0; i < SIZE_UID; i++) {
-        uidBytes[i] = rfid.uid.uidByte[i];
-      }
-      rfid.PICC_HaltA();       // Halt PICC
-      rfid.PCD_StopCrypto1();  // Stop encryption
-
-#if DEBUG && DEBUG_RFID
-      Serial.print("RFID UID: ");
-      for (byte i = 0; i < SIZE_UID; i++) {
-        if (uidBytes[i] < 0x10) Serial.print("0");
-        Serial.print(uidBytes[i], BIN);
-        if (i < SIZE_UID - 1) Serial.print(":");
-      }
-      Serial.println("\n");
-
-#endif
-
-      return true;
-    }
-  }
-  return false;
-}
-
-bool formatRfidUid() {
-  oldTagId = tagId;
-  tagId = ((uint16_t)uidBytes[UIDBYTE0] << 8) | uidBytes[UIDBYTE1];
-  iS = uidBytes[UIDBYTE2];
-  sID = uidBytes[UIDBYTE3];
-
-#if DEBUG && DEBUG_FORMAT
-
-  Serial.println("---------------UID Format ID Tag-----------------");
-  Serial.print("Tag Id: ");
-  Serial.println(tagId);
-  Serial.print("iS (intersection (0) or station (1)): ");
-  Serial.println(iS);
-  Serial.print("Station ID: ");
-  Serial.println(sID);
-  Serial.print("OldTagId: ");
-  Serial.println(oldTagId);
-  Serial.println("---------------------------------------------------");
-#endif
-  return true;
-}
-
 void ESP32LedCrontrol(int color) {
   switch (color) {
     case 0:  // UIT
@@ -394,6 +418,54 @@ void ESP32LedCrontrol(int color) {
       break;
   }
 }
+
+bool readRFIDReader() {
+
+  if (rfid.PICC_IsNewCardPresent()) {
+    if (rfid.PICC_ReadCardSerial()) {
+      for (int i = 0; i < SIZE_UID; i++) {
+        uidBytes[i] = rfid.uid.uidByte[i];
+      }
+      rfid.PICC_HaltA();       // Halt PICC
+      rfid.PCD_StopCrypto1();  // Stop encryption
+
+#if DEBUG && DEBUG_RFID
+      Serial.print("RFID UID: ");
+      for (byte i = 0; i < SIZE_UID; i++) {
+        if (uidBytes[i] < 0x10) Serial.print("0");
+        Serial.print(uidBytes[i], BIN);
+        if (i < SIZE_UID - 1) Serial.print(":");
+      }
+      Serial.println("\n");
+#endif
+      return true;
+    }
+  }
+  return false;
+}
+
+bool formatRfidUid() {
+  oldTagId = tagId;
+  tagId = ((uint16_t)uidBytes[UIDBYTE0] << 8) | uidBytes[UIDBYTE1];
+  iS = uidBytes[UIDBYTE2];
+  sID = uidBytes[UIDBYTE3];
+
+#if DEBUG && DEBUG_FORMAT
+
+  Serial.println("---------------UID Format ID Tag-----------------");
+  Serial.print("Tag Id: ");
+  Serial.println(tagId);
+  Serial.print("iS (intersection (0) or station (1)): ");
+  Serial.println(iS);
+  Serial.print("Station ID: ");
+  Serial.println(sID);
+  Serial.print("OldTagId: ");
+  Serial.println(oldTagId);
+  Serial.println("---------------------------------------------------");
+#endif
+  return true;
+}
+
 bool intersection(uint16_t nextTagId) {
   String debugMessage = "tag not found in bitmap";
   bool returnValue;
@@ -459,57 +531,4 @@ void rfidTagAction() {
   Serial.println(debugMessage);
   Serial.println();
 #endif
-}
-
-
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-  Serial.println("Initiate");
-  // Pins
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-  pinMode(LEFT_SENSOR_PIN, INPUT);
-  pinMode(RIGHT_SENSOR_PIN, INPUT);
-  pinMode(LEFT_MOTOR_DIR, OUTPUT);
-  pinMode(RIGHT_MOTOR_DIR, OUTPUT);
-
-  // PWM setup met jouw pinnen
-  ledcSetup(LEFT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
-  ledcAttachPin(LEFT_MOTOR, LEFT_PWM_CHANNEL);
-
-  ledcSetup(RIGHT_PWM_CHANNEL, PWM_FREQ, PWM_RES);
-  ledcAttachPin(RIGHT_MOTOR, RIGHT_PWM_CHANNEL);
-
-  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
-  rfid.PCD_Init();                                 // init MFRC522
-  //rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
-
-  pinMode(ESP_RED_PIN, OUTPUT);
-  pinMode(ESP_GREEN_PIN, OUTPUT);
-  pinMode(ESP_BLUE_PIN, OUTPUT);
-}
-
-void loop() {
-  unsigned long currentMillis = millis();
-  int Position = 0;
-
-  if (routeCounter == routeSize) {
-    routeCounter = 0;
-  }
-
-  // mesh.                                          ();
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-    if (readRFIDReader()) {
-      if (formatRfidUid()) {
-        rfidTagAction();
-      }
-    }
-  }
-
-  SensorCheck();
-  if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
-    Stop();
-  }
 }
