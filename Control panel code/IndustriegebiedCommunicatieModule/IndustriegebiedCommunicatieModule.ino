@@ -114,25 +114,37 @@ void SecondStationAndAmount(){
   if(MaxCargo - Buf_F_Amount > 0) {
     switch (Buf_F_Station) {
       case 1:
-        UserInput = ValidateInput("Welk tweede station?: Deeg(2), tomaat(3), kaas(4) of kip(5)? ", 2, 5);
+        UserInput = ValidateInput("Welk tweede station?: Deeg(2), tomaat(3), kaas(4), kip(5) of geen(6)? ", 2, 6);
         if (RestartLoop) return;
-        Buf_S_Station = UserInput;
+        if(UserInput == 6){
+          Buf_S_Station = 0;
+        } else{
+          Buf_S_Station = UserInput;
+        }
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
         SecondAmount();
       break;
       case 2:
-        UserInput = ValidateInput("Welk tweede station?: Tomaat(3), kaas(4) of kip(5)? ", 3, 5);
+        UserInput = ValidateInput("Welk tweede station?: Tomaat(3), kaas(4), kip(5) of geen(6)? ", 3, 6);
         if (RestartLoop) return;
-        Buf_S_Station = UserInput;
+        if(UserInput == 6){
+          Buf_S_Station = 0;
+        } else{
+          Buf_S_Station = UserInput;
+        }
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
         SecondAmount();
       break;
       case 3:
-        UserInput = ValidateInput("Welk tweede station?: Kaas(4) of kip(5)? ", 4, 5);
+        UserInput = ValidateInput("Welk tweede station?: Kaas(4), kip(5) of geen(6)? ", 4, 6);
         if (RestartLoop) return;
-        Buf_S_Station = UserInput;
+        if(UserInput == 6){
+          Buf_S_Station = 0;
+        } else{
+          Buf_S_Station = UserInput;
+        }
         Serial.print("Je hebt ingevuld: ");
         Serial.println(Buf_S_Station);
         SecondAmount();
@@ -143,7 +155,7 @@ void SecondStationAndAmount(){
         Choice = UserInput;
         Serial.print("Je hebt ingevuld: ");
         if(Choice){
-          Buf_S_Station = 5;
+          Buf_S_Station = 0;
         } else{
           Buf_S_Station = 0;
         }
@@ -164,27 +176,31 @@ void SecondStationAndAmount(){
 }
 
 void SecondAmount(){
-  switch (Buf_F_Amount) {
-    case 1:
-      UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3 of 4?", 1, 4);
-      if (RestartLoop) return;
-      break;
-    case 2:
-      UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2 of 3?", 1, 3);
-      if (RestartLoop) return;
-      break;
-    case 3:
-      UserInput = ValidateInput("Hoeveel wil je ophalen?: 1 of 2?", 1, 2);
-      if (RestartLoop) return;
-      break;
-    case 4:
-      Serial.println("1 goed wordt opgehaald");
-      Buf_S_Amount = 1;
-      return;
+  if(Buf_S_Station == 0){
+    Buf_S_Amount = 0;
+  } else{
+    switch (Buf_F_Amount) {
+      case 1:
+        UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3 of 4?", 1, 4);
+        if (RestartLoop) return;
+        break;
+      case 2:
+        UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2 of 3?", 1, 3);
+        if (RestartLoop) return;
+        break;
+      case 3:
+        UserInput = ValidateInput("Hoeveel wil je ophalen?: 1 of 2?", 1, 2);
+        if (RestartLoop) return;
+        break;
+      case 4:
+        Serial.println("1 goed wordt opgehaald");
+        Buf_S_Amount = 1;
+        return;
+    } 
+    Buf_S_Amount = UserInput;
+    Serial.print("Je hebt ingevuld: ");
+    Serial.println(Buf_S_Amount);
   }
-  Buf_S_Amount = UserInput;
-  Serial.print("Je hebt ingevuld: ");
-  Serial.println(Buf_S_Amount);
 }
 
 void ShowPlanner(){
