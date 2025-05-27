@@ -29,7 +29,6 @@ typedef struct Message {
   uint8_t End_Key;
 } Message;
 
-Message IncomingMessage;
 Message OutgoingMessage;
 bool NewMessageReceived = false;
 int UserInput = 0;
@@ -117,13 +116,6 @@ void StationChoice(int stationNumber, int stationValue) {
 
 void StationChoices(){
   switch (Buf_Route){
-    case 0:
-      Buf_1e_Station = 0;
-      Buf_2e_Station = 0;
-      Buf_3e_Station = 0;
-      Buf_4e_Station = 0;
-      break;
-
     case 1:
       Serial.println("Mogelijke stations binnen routen zijn: 1, 2 en 3");
       StationChoice(1, Station1);
@@ -202,15 +194,6 @@ void SendMessage() {
   }
 }
 
-void OnDataReceive(const uint8_t * MacAdress, const uint8_t *IncomingBytes, int Length) {
-  char MacAdressString[18];
-  snprintf(MacAdressString, sizeof(MacAdressString), "%02X:%02X:%02X:%02X:%02X:%02X",
-           MacAdress[0], MacAdress[1], MacAdress[2], MacAdress[3], MacAdress[4], MacAdress[5]);
-  Serial.println("Iets ontvangen");
-  NewMessageReceived = true;
- memcpy(&IncomingMessage, IncomingBytes, sizeof(IncomingMessage));
-}
-
 void MakeMessage(int b, int d, int s, int m, int r, int fs, int ss, int ts, int fos, int e){
   OutgoingMessage.Begin_Key = b;
   OutgoingMessage.Dest_ID = d;
@@ -233,7 +216,6 @@ void setup() {
     Serial.println("ESP-NOW init mislukt");
     return;
   }
-  esp_now_register_recv_cb(OnDataReceive);
 
   esp_now_peer_info_t peerInfo = {};
   memcpy(peerInfo.peer_addr, Mac1, 6);
