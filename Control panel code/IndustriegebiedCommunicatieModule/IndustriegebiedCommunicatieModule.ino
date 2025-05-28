@@ -1,14 +1,24 @@
+/*
+ * File: IndustriegebiedCommunicatieModule
+ * Author: Liam Grovenstein
+ * Created: 28 05 2025
+ * Description: Code that sends instructions to vehicle
+ */
+
 #include <WiFi.h>
 #include <esp_now.h>
-#include <SPI.h>
-#include <MFRC522.h>
+
+// --------------------DEBUG --------------------------------------------------------
+#define DEBUG true              // Enable or disable all DEBUG prints
+#define OUTGOING_MESSAGE true  // " prints full outgoing message
+#define WIFI true              // " prints wifi related debug messages
+//------------------------------------------------------------------------------------
 
 #define Own_ID_DEF 1
 #define Begin_Key_DEF 10
 #define Message_Kind_DEF 1
 #define End_Key_DEF 5
-
-uint8_t Mac1[] = {0x74, 0x4D, 0xBD, 0x77, 0x08, 0x1C};
+#define MAX_CARGO 5
 
 typedef struct Message {
   uint8_t Begin_Key;
@@ -22,72 +32,132 @@ typedef struct Message {
   uint8_t End_Key;
 } Message;
 
-Message IncomingMessage;
+//Global variables
+uint8_t ReceiveAdress[] = {0x74, 0x4D, 0xBD, 0x77, 0x08, 0x1C};
 Message OutgoingMessage;
 bool NewMessageReceived = false;
 int UserInput = 0;
 bool RestartLoop = false;
-
-int MaxCargo = 5;
 int Car = 0;
-
 int Buf_Dest_ID = 0;
-int Buf_Message_Kind = 0;
-int Buf_F_Station = 0;
-int Buf_F_Amount = 0;
-int Buf_S_Station = 0;
-int Buf_S_Amount = 0;
+int Buf_1e_Station = 0;
+int Buf_1e_Amount = 0;
+int Buf_2e_Station = 0;
+int Buf_2e_Amount = 0;
 
-int ValidateInput(String Prompt, int MinimumValue, int MaximumValue) {
+//-------------------------------------Functie Prototypes--------------------------------------------------------------
+int ValidateInput(String Prompt, int MinimumValue, int MaximumValue);
+void CarChoice();
+void FirstStation();
+void FirstAmount();
+void SecondStationAndAmount();
+void SecondAmount();
+void ShowPlanner();
+void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int D3, int D4, int E_Key);
+void ConfirmSending();
+
+//-------------------------------------Setup and main loop--------------------------------------------------------------
+void setup() {
+  Serial.begin(115200);
+  delay(3000);
+  WiFi.mode(WIFI_STA);
+
+  if (esp_now_init() != ESP_OK) {
+    #if DEBUG && WIFI
+    Serial.println("---------------WIFI DEBUG-----------------");
+    Serial.println("ESP-NOW init mislukt");
+    Serial.println("------------------------------------------");
+    #endif
+    return;
+  }
+
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, ReceiveAdress, 6);
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    #if DEBUG && WIFI
+    Serial.println("---------------WIFI DEBUG-----------------");
+    Serial.println("Peer toevoegen mislukt");
+    Serial.println("------------------------------------------");
+    #endif
+    return;
+  }
+}
+
+void loop() {
+  RestartLoop = false;
+
+  Serial.println("===================================================================================================");
+  Serial.println("Industrie vrachtwagen controle: ");
+  Serial.println("*Druk op q om het menu te herstellen*"); Serial.println(" ");
+
+  CarChoice(); if (RestartLoop) return;
+  FirstStation(); if (RestartLoop) return;
+  FirstAmount(); if (RestartLoop) return;
+  SecondStationAndAmount(); if (RestartLoop) return;
+
+  ShowPlanner();
+  MakeMessage(Begin_Key_DEF,
+              Buf_Dest_ID,
+              Own_ID_DEF,
+              Message_Kind_DEF,
+              Buf_1e_Station,
+              Buf_1e_Amount,
+              Buf_2e_Station,
+              Buf_2e_Amount,
+              End_Key_DEF);
+  
+  ConfirmSending(); if (RestartLoop) return;
+  SendMessage();
+}
+
+//-------------------------------------User input validatie--------------------------------------------------------------
+int ValidateInput(String Prompt, int MinimumValue, int MaximumValue){
   String Input;
   int Result = 0;
   bool Valid = false;
-
-  while (!Valid) {
+  while (!Valid){
     Serial.println(Prompt);
     while (Serial.available() == 0) {}
-
     Input = Serial.readStringUntil('\n');
     Input.trim();
-
-    if (Input == "q" || Input == "Q") {
+    if (Input == "q" || Input == "Q"){
       RestartLoop = true;
       return -1;
     }
     bool IsNumber = true;
-    for (unsigned int i = 0; i < Input.length(); i++) {
-      if (!isDigit(Input[i])) {
+    for (unsigned int i = 0; i<Input.length(); i++){
+      if (!isDigit(Input[i])){
         IsNumber = false;
         break;
       }
     }
-
-    if (!IsNumber) {
+    if (!IsNumber){
       Serial.println("Ongeldige waarde ingevoerd: voer een getal in!");
       continue;
     }
-
     Result = Input.toInt();
-    if (Result < MinimumValue || Result > MaximumValue) {
+    if (Result<MinimumValue || Result>MaximumValue){
       Serial.print("Getal is niet van goede waarde: voer getal in tussen ");
       Serial.print(MinimumValue);
       Serial.print(" en ");
-      Serial.print(MaximumValue);
-      Serial.println(".");
-    } else {
+      Serial.println(MaximumValue);
+    } else{
       Valid = true;
     }
   }
   return Result;
 }
 
-
+//-------------------------------------Menu choices--------------------------------------------------------------
 void CarChoice(){
   UserInput = ValidateInput("Vrachtwagen 1 of 2?", 1, 2);
   if (RestartLoop) return;
   Car = UserInput;
   Serial.print("Je hebt ingevuld:");
-  Serial.println(Car);
+  Serial.println(Car); Serial.println(" ");
   if (Car == 1) Buf_Dest_ID = 3;
   if (Car == 2) Buf_Dest_ID = 4;
 }
@@ -96,57 +166,57 @@ void FirstStation(){
   bool error = false;
   UserInput = ValidateInput("Welk station?: Pepperoni (1) Deeg(2), tomaat(3), kaas(4) of kip(5)? ", 1, 5);
   if (RestartLoop) return;
-  Buf_F_Station = UserInput;
+  Buf_1e_Station = UserInput;
   Serial.print("Je hebt ingevuld: ");
-  Serial.println(Buf_F_Station);
+  Serial.println(Buf_1e_Station); Serial.println(" ");
 }
 
 void FirstAmount(){
   UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3, 4 of 5", 1, 5);
   if (RestartLoop) return;
-  Buf_F_Amount = UserInput;
+  Buf_1e_Amount = UserInput;
   Serial.print("Je hebt ingevuld: ");
-  Serial.println(Buf_F_Amount);
+  Serial.println(Buf_1e_Amount); Serial.println(" ");
 }
 
 void SecondStationAndAmount(){
   int Choice = 0;
-  if(MaxCargo - Buf_F_Amount > 0) {
-    switch (Buf_F_Station) {
+  if(MAX_CARGO - Buf_1e_Amount > 0) {
+    switch (Buf_1e_Station) {
       case 1:
         UserInput = ValidateInput("Welk tweede station?: Deeg(2), tomaat(3), kaas(4), kip(5) of geen(6)? ", 2, 6);
         if (RestartLoop) return;
         if(UserInput == 6){
-          Buf_S_Station = 0;
+          Buf_2e_Station = 0;
         } else{
-          Buf_S_Station = UserInput;
+          Buf_2e_Station = UserInput;
         }
         Serial.print("Je hebt ingevuld: ");
-        Serial.println(Buf_S_Station);
+        Serial.println(Buf_2e_Station); Serial.println(" ");
         SecondAmount();
       break;
       case 2:
         UserInput = ValidateInput("Welk tweede station?: Tomaat(3), kaas(4), kip(5) of geen(6)? ", 3, 6);
         if (RestartLoop) return;
         if(UserInput == 6){
-          Buf_S_Station = 0;
+          Buf_2e_Station = 0;
         } else{
-          Buf_S_Station = UserInput;
+          Buf_2e_Station = UserInput;
         }
         Serial.print("Je hebt ingevuld: ");
-        Serial.println(Buf_S_Station);
+        Serial.println(Buf_2e_Station); Serial.println(" ");
         SecondAmount();
       break;
       case 3:
         UserInput = ValidateInput("Welk tweede station?: Kaas(4), kip(5) of geen(6)? ", 4, 6);
         if (RestartLoop) return;
         if(UserInput == 6){
-          Buf_S_Station = 0;
+          Buf_2e_Station = 0;
         } else{
-          Buf_S_Station = UserInput;
+          Buf_2e_Station = UserInput;
         }
         Serial.print("Je hebt ingevuld: ");
-        Serial.println(Buf_S_Station);
+        Serial.println(Buf_2e_Station); Serial.println(" ");
         SecondAmount();
       break;
       case 4:
@@ -155,31 +225,31 @@ void SecondStationAndAmount(){
         Choice = UserInput;
         Serial.print("Je hebt ingevuld: ");
         if(Choice){
-          Buf_S_Station = 0;
+          Buf_2e_Station = 0;
         } else{
-          Buf_S_Station = 0;
+          Buf_2e_Station = 0;
         }
-        Serial.println(Buf_S_Station);
+        Serial.println(Buf_2e_Station); Serial.println(" ");
         SecondAmount();
       break;
       case 5:
-        Serial.println("Geen volgende station mogelijk!");
-        Buf_S_Station = 0;
-        Buf_S_Amount = 0;
+        Serial.println("Geen volgende station mogelijk!"); Serial.println(" ");
+        Buf_2e_Station = 0;
+        Buf_2e_Amount = 0;
       break;
     }
   } else {
-    Serial.println("Geen volgende station mogelijk!");
-    Buf_S_Station = 0;
-    Buf_S_Amount = 0;
+    Serial.println("Geen volgende station mogelijk!"); Serial.println(" ");
+    Buf_2e_Station = 0;
+    Buf_2e_Amount = 0;
   }
 }
 
 void SecondAmount(){
-  if(Buf_S_Station == 0){
-    Buf_S_Amount = 0;
+  if(Buf_2e_Station == 0){
+    Buf_2e_Amount = 0;
   } else{
-    switch (Buf_F_Amount) {
+    switch (Buf_1e_Amount) {
       case 1:
         UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3 of 4?", 1, 4);
         if (RestartLoop) return;
@@ -194,97 +264,63 @@ void SecondAmount(){
         break;
       case 4:
         Serial.println("1 goed wordt opgehaald");
-        Buf_S_Amount = 1;
+        Buf_2e_Amount = 1;
         return;
     } 
-    Buf_S_Amount = UserInput;
+    Buf_2e_Amount = UserInput;
     Serial.print("Je hebt ingevuld: ");
-    Serial.println(Buf_S_Amount);
+    Serial.println(Buf_2e_Amount); Serial.println(" ");
   }
 }
 
+void ConfirmSending(){
+  UserInput = ValidateInput("Wil je instructies versturen?: Ja(1) of Nee(q)", 1, 1); Serial.println(" ");
+  if (RestartLoop) return;
+}
+
+//-------------------------------------Planner--------------------------------------------------------------
 void ShowPlanner(){
+  Serial.println("-------------Planner---------------");
   Serial.println("De volgende informatie is ingevuld:");
   Serial.print("Auto: "); Serial.println(Car);
-  Serial.print("Eerste station: "); Serial.println(Buf_F_Station);
-  Serial.print("Hoeveelheid: "); Serial.println(Buf_F_Amount);
-  Serial.print("Tweede station: "); Serial.println(Buf_S_Station);
-  Serial.print("Hoeveelheid: "); Serial.println(Buf_S_Amount);
+  Serial.print("Eerste station: "); Serial.println(Buf_1e_Station);
+  Serial.print("Hoeveelheid: "); Serial.println(Buf_1e_Amount);
+  Serial.print("Tweede station: "); Serial.println(Buf_2e_Station);
+  Serial.print("Hoeveelheid: "); Serial.println(Buf_2e_Amount);
+  Serial.println("-----------------------------------"); Serial.println(" ");
 }
 
-void SendMessage() {
-  esp_err_t Result = esp_now_send(Mac1, (uint8_t *) &OutgoingMessage, sizeof(OutgoingMessage));
+//-------------------------------------Wifi--------------------------------------------------------------
+void SendMessage(){
+  esp_err_t Result = esp_now_send(ReceiveAdress, (uint8_t *) &OutgoingMessage, sizeof(OutgoingMessage));
   if (Result == ESP_OK) {
-    Serial.println("Bericht succesvol verzonden");
+    Serial.println("Bericht succesvol verzonden"); Serial.println(" ");
+    #if DEBUG && OUTGOING_MESSAGE
+      Serial.println("---------------Outgoing Message DEBUG-----------------");
+      Serial.print  ("Begin key: "); Serial.println(OutgoingMessage.Begin_Key);
+      Serial.print  ("Destination ID: "); Serial.println(OutgoingMessage.Dest_ID);
+      Serial.print  ("Source ID: "); Serial.println(OutgoingMessage.Source_ID);
+      Serial.print  ("Message kind: "); Serial.println(OutgoingMessage.Message_Kind);
+      Serial.print  ("Data1: "); Serial.println(OutgoingMessage.Data1);
+      Serial.print  ("Data2: "); Serial.println(OutgoingMessage.Data2);
+      Serial.print  ("Data3: "); Serial.println(OutgoingMessage.Data3);
+      Serial.print  ("Data4: "); Serial.println(OutgoingMessage.Data4);
+      Serial.print("End key: "); Serial.println(OutgoingMessage.End_Key);
+      Serial.println("------------------------------------------------------"); Serial.println(" ");
+    #endif
   } else {
-    Serial.print("Verzendfout: "); Serial.println(Result);
+    Serial.print("Verzendfout: "); Serial.println(Result); Serial.println(" ");
   }
 }
 
-void OnDataReceive(const uint8_t * MacAdress, const uint8_t *IncomingBytes, int Length) {
-  char MacAdressString[18];
-  snprintf(MacAdressString, sizeof(MacAdressString), "%02X:%02X:%02X:%02X:%02X:%02X",
-           MacAdress[0], MacAdress[1], MacAdress[2], MacAdress[3], MacAdress[4], MacAdress[5]);
-  Serial.println("Iets ontvangen");
-  NewMessageReceived = true;
- memcpy(&IncomingMessage, IncomingBytes, sizeof(IncomingMessage));
-}
-
-void MakeMessage(int b, int d, int s, int m, int fs, int fa, int ss, int sa, int e){
-  OutgoingMessage.Begin_Key = b;
-  OutgoingMessage.Dest_ID = d;
-  OutgoingMessage.Source_ID = s;
-  OutgoingMessage.Message_Kind = m;
-  OutgoingMessage.Data1 = fs;
-  OutgoingMessage.Data2 = fa;
-  OutgoingMessage.Data3 = ss;
-  OutgoingMessage.Data4 = sa;
-  OutgoingMessage.End_Key = e;
-}
-
-void setup() {
-  Serial.begin(115200);
-  delay(3000);
-  WiFi.mode(WIFI_STA);
-
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("ESP-NOW init mislukt");
-    return;
-  }
-  esp_now_register_recv_cb(OnDataReceive);
-
-  esp_now_peer_info_t peerInfo = {};
-  memcpy(peerInfo.peer_addr, Mac1, 6);
-  peerInfo.channel = 0;  
-  peerInfo.encrypt = false;
-
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Peer toevoegen mislukt");
-    return;
-  }
-}
-
-void loop() {
-  RestartLoop = false;
-
-  Serial.println("================================");
-  Serial.println("Industrie vrachtwagen controle: ");
-  Serial.println("*Druk op q om het menu te herstellen*");
-
-  CarChoice(); if (RestartLoop) return;
-  FirstStation(); if (RestartLoop) return;
-  FirstAmount(); if (RestartLoop) return;
-  SecondStationAndAmount(); if (RestartLoop) return;
-
-  ShowPlanner();
-  MakeMessage(Begin_Key_DEF,
-              Buf_Dest_ID,
-              Own_ID_DEF,
-              Message_Kind_DEF,
-              Buf_F_Station,
-              Buf_F_Amount,
-              Buf_S_Station,
-              Buf_S_Amount,
-              End_Key_DEF);
-  SendMessage();
+void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int D3, int D4, int E_Key){
+  OutgoingMessage.Begin_Key = B_Key; 
+  OutgoingMessage.Dest_ID = D_ID;
+  OutgoingMessage.Source_ID = S_ID;
+  OutgoingMessage.Message_Kind = M_Kind;
+  OutgoingMessage.Data1 = D1;
+  OutgoingMessage.Data2 = D2;
+  OutgoingMessage.Data3 = D3;
+  OutgoingMessage.Data4 = D4;
+  OutgoingMessage.End_Key = E_Key;
 }
