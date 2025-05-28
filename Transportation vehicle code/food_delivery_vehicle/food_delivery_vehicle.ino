@@ -1,16 +1,26 @@
+#include <esp_now.h>
+#include <WiFi.h>
 #include <SPI.h>
 #include <MFRC522.h>
 
 // --------------------DEBUG --------------------------------------------------------
-#define DEBUG true              // Enable or disable all DEBUG prints
-#define DEBUG_RFID false        // RFID reader debug (what the readers received)
-#define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
-#define DEBUG_DRIVING false     // driving direct with sensor values.
+#define DEBUG true             // Enable or disable all DEBUG prints
+#define DEBUG_RFID true        // RFID reader debug (what the readers received)
+#define DEBUG_RFID_CHECK true  // DEBUG print of de RFID tag id
+#define DEBUG_DRIVING false    // driving direct with sensor values.
 #define DEBUG_FORMAT false
 #define TAG_ACTION true
-#define DEBUG_TAG_STEERING_DIRECTION true
+#define DEBUG_TAG_STEERING_DIRECTION false
+#define DEBUG_ROUTEPREP true
 //------------------------------------------------------------------------------------
+#define PICK_UP_DELAY 10000
+#define PIZZARIA_STATION_ID 4
 
+#define Own_ID_DEF 3
+#define Begin_Key_DEF 10
+#define End_Key_DEF 5
+
+#define MAX_ROUTE_LENGTH 14
 // Ultrasoon
 #define TRIG_PIN 20
 #define ECHO_PIN 19
@@ -45,7 +55,7 @@
 #define NORMALADJUST 0
 #define STEERING_SPEED 220
 #define TURN_AROUND_DELAY 1150
-#define TURN_DELAY 550
+#define TURN_DELAY 600
 
 // RFID Reader
 #define SCK_PIN 13   // Serial Clock (SCK)
@@ -100,7 +110,7 @@ struct rfidMapStruct {
   uint16_t straightTag;
   uint16_t rightTag;
 };
- // RFID tag map 
+// RFID tag map
 rfidMapStruct tagMap[] = {
   // Intersections
   // Tag 1
@@ -184,14 +194,65 @@ rfidMapStruct tagMap[] = {
   // Tag 17 (blauw station)
   { 17, 10, 0, 9, 0 },
   { 17, 9, 0, 10, 0 }
-  
+
 };
 
 const int mapLength = sizeof(tagMap) / sizeof(tagMap[0]);
-char routeCounter = 0;
 
-uint16_t testRoute[] = { 15, 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11 }; // for testing 
-uint8_t routeSize = sizeof(testRoute) / sizeof(testRoute[0]);
+char routeCounter = 0;
+// uint16_t testRoute[] = { 15, 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11 };  // for testing
+// uint8_t routeSize = sizeof(testRoute) / sizeof(testRoute[0]);
+
+struct rfidRouteMapStruct {
+  uint8_t RouteIndication;
+  uint16_t route[MAX_ROUTE_LENGTH];
+  uint8_t length;
+};
+
+rfidRouteMapStruct routeMap[] = {
+  { 0, { 15 }, 1 },
+  { 1, { 6, 1, 2, 12, 3, 13, 4, 14, 5, 11, 15 }, 11 },
+  { 2, { 6, 7, 8, 9, 17, 10, 4, 14, 5, 11, 15 }, 11 },
+  { 3, { 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11, 15 }, 12 },
+  { 4, { 6, 7, 8, 9, 3, 13, 4, 14, 5, 11, 15 }, 11 },
+  { 5, { 6, 7, 8, 2, 12, 3, 9, 17, 10, 4, 14, 5, 11, 15 }, 14 },
+  { 6, { 6, 1, 2, 8, 9, 3, 13, 4, 14, 5, 11, 15 }, 12 },
+  { 7, { 6, 1, 2, 12, 3, 9, 17, 10, 4, 14, 5, 11, 15 }, 13 },
+  { 8, { 6, 1, 2, 8, 9, 17, 10, 4, 14, 5, 11, 15 }, 12 }
+
+};
+const int RouteMaplength = sizeof(routeMap) / sizeof(routeMap[0]);
+
+uint16_t CurrentRoute[MAX_ROUTE_LENGTH];
+uint8_t routelength;
+
+typedef struct Message {
+  uint8_t Begin_Key;
+  uint8_t Dest_ID;
+  uint8_t Source_ID;
+  uint8_t Message_Kind;
+  uint8_t Data1;  //(Route)
+  uint8_t Data2;  //(1e station > 0)
+  uint8_t Data3;  //(2e station > 0, of 0 wanneer nvt)
+  uint8_t Data4;  //(3e station > 0, of 0 wanneer nvt)
+  uint8_t Data5;  //(4e station > 0, of 0 wanneer nvt)
+  uint8_t End_Key;
+} Message;
+
+// struct for storing message
+Message IncomingMessage;
+Message StoredMessage;
+
+// bool for new message flag
+bool NewStoredMessage = false;
+// bool for pizzastation flag
+bool PizzariaStation = false;
+
+uint8_t routeIndicator = 0;
+uint8_t stop1;
+uint8_t stop2;
+uint8_t stop3;
+uint8_t stop4;
 
 // --- Motor functies ---
 void Stop();
@@ -213,10 +274,31 @@ bool formatRfidUid();
 // --- ESP32 LED control ---
 void ESP32LedCrontrol(int color);
 
+// Callback voor ESP-NOW
+void OnDataReceive(const uint8_t *mac, const uint8_t *incomingData, int len);
+// Berichten decoderen
+void formatMessage();
+
+// arduinoooooooooo
+void setup();
+void loop();
+//-----------------------------------------------------------------------------------
+
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  Serial.println("Initiate");
+  delay(5000);
+
+  WiFi.mode(WIFI_STA);
+  Serial.println("Wifi Started");
+  Serial.print("MAC adres receiver: ");
+  Serial.println(WiFi.macAddress());
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW init mislukt");
+    return;
+  }
+
+  esp_now_register_recv_cb(OnDataReceive);
   // Pins
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
@@ -239,15 +321,24 @@ void setup() {
   pinMode(ESP_RED_PIN, OUTPUT);
   pinMode(ESP_GREEN_PIN, OUTPUT);
   pinMode(ESP_BLUE_PIN, OUTPUT);
+  routePrep();
 }
 
 void loop() {
   unsigned long currentMillis = millis();
   int Position = 0;
 
-  if (routeCounter == routeSize) {
-    routeCounter = 0;
+  while (PizzariaStation) {  // if by the pizza station wait till new message
+    Stop();
+    if (NewStoredMessage) {
+      formatMessage();
+      routePrep();
+    }
   }
+
+  // if (routeCounter == routeSize) {
+  //   routeCounter = 0;
+  // }
 
   // mesh.                                          ();
   if (currentMillis - previousMillis >= interval) {
@@ -263,6 +354,36 @@ void loop() {
   if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
     Stop();
   }
+}
+
+//-----------------------------------Wifi---------------------------------------------------------------
+void OnDataReceive(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  memcpy(&IncomingMessage, incomingData, sizeof(IncomingMessage));
+  Serial.println("Bericht ontvangen:");
+  if (IncomingMessage.Begin_Key == Begin_Key_DEF && IncomingMessage.End_Key == End_Key_DEF) {
+    if (PizzariaStation) {
+      NewStoredMessage = true;
+      StoredMessage = IncomingMessage;
+      PizzariaStation = false;
+    } else {
+      NewStoredMessage = false;
+    }
+    Serial.printf("Van: %d -> Voor: %d\n", IncomingMessage.Source_ID, IncomingMessage.Dest_ID);
+    Serial.printf("Type: %d\n", IncomingMessage.Message_Kind);
+    Serial.printf("Eerste station: %d, Hoeveel: %d\n", IncomingMessage.Data1, IncomingMessage.Data2);
+    Serial.printf("Tweede station: %d, Hoeveel: %d\n", IncomingMessage.Data3, IncomingMessage.Data4);
+  } else {
+    Serial.println("Ongeldig berichtformaat");
+  }
+}
+
+// // Format incomming messages
+void formatMessage() {
+  routeIndicator = StoredMessage.Data1;
+  stop1 = StoredMessage.Data2;
+  stop2 = StoredMessage.Data3;
+  stop3 = StoredMessage.Data4;
+  stop4 = StoredMessage.Data5;
 }
 
 // --- Motor functies ---
@@ -451,7 +572,6 @@ bool formatRfidUid() {
   sID = uidBytes[UIDBYTE3];
 
 #if DEBUG && DEBUG_FORMAT
-
   Serial.println("---------------UID Format ID Tag-----------------");
   Serial.print("Tag Id: ");
   Serial.println(tagId);
@@ -464,6 +584,31 @@ bool formatRfidUid() {
   Serial.println("---------------------------------------------------");
 #endif
   return true;
+}
+
+void routePrep() {
+  char route = 0;
+  for (int i = 0; i < RouteMaplength; i++) {
+    if (routeMap[i].RouteIndication == routeIndicator) {
+      route = i;
+      routelength = routeMap[i].length;
+      for (uint8_t j = 0; j < routelength; j++)
+        CurrentRoute[j] = routeMap[i].route[j];
+    }
+  }
+  routeCounter = 0;
+#if DEBUG && DEBUG_ROUTEPREP
+  Serial.print("Route: ");
+  Serial.println(route);
+  Serial.print("CurrentRoute (length: ");
+  Serial.print(routelength);
+  Serial.print("): ");
+  for (uint8_t j = 0; j < routelength; j++) {
+    Serial.print(CurrentRoute[j]);
+    if (j < routelength - 1) Serial.print(" -> ");
+  }
+  Serial.println();
+#endif
 }
 
 bool intersection(uint16_t nextTagId) {
@@ -512,20 +657,30 @@ void rfidTagAction() {
     case 0:
       Stop();
       debugMessage = "Tag intersection";
-      if (intersection(testRoute[routeCounter]))
+      if (intersection(CurrentRoute[routeCounter]))
         routeCounter++;
-
       break;
     case 1:
       Stop();
       debugMessage = "Tag station";
-      if (intersection(testRoute[routeCounter]))
-        routeCounter++;
 
+      if (sID == stop1 || sID == stop2 || sID == stop3 || sID == stop4) {
+        delay(PICK_UP_DELAY);
+        Serial.println("Hier pizza op je focus");
+      } else if (sID == PIZZARIA_STATION_ID) {
+        PizzariaStation = true;
+        Serial.println("jum jum pizza");
+        break;
+
+      } else if (intersection(CurrentRoute[routeCounter])) {
+        routeCounter++;
+        Serial.print("ben ik er nou nog niet");
+      }
       break;
     default:
       debugMessage = "Tag action Unknown";
   }
+
 #if DEBUG && TAG_ACTION
   Serial.print("Tag action: ");
   Serial.println(debugMessage);
