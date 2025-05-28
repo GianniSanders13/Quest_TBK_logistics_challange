@@ -33,7 +33,7 @@ typedef struct Message {
 } Message;
 
 //Global variables
-uint8_t ReceiveAdress[] = {0x74, 0x4D, 0xBD, 0x77, 0x08, 0x1C};
+uint8_t ReceiveAdress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 Message OutgoingMessage;
 bool NewMessageReceived = false;
 int UserInput = 0;
@@ -47,7 +47,7 @@ int Buf_2e_Amount = 0;
 
 //-------------------------------------Functie Prototypes--------------------------------------------------------------
 int ValidateInput(String Prompt, int MinimumValue, int MaximumValue);
-void CarChoice();
+//void CarChoice();
 void FirstStation();
 void FirstAmount();
 void SecondStationAndAmount();
@@ -55,6 +55,7 @@ void SecondAmount();
 void ShowPlanner();
 void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int D3, int D4, int E_Key);
 void ConfirmSending();
+void SendMessage();
 
 //-------------------------------------Setup and main loop--------------------------------------------------------------
 void setup() {
@@ -73,16 +74,19 @@ void setup() {
 
   esp_now_peer_info_t peerInfo = {};
   memcpy(peerInfo.peer_addr, ReceiveAdress, 6);
-  peerInfo.channel = 0;  
+  peerInfo.channel = 0;
   peerInfo.encrypt = false;
+  peerInfo.ifidx = WIFI_IF_STA;
 
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    #if DEBUG && WIFI
-    Serial.println("---------------WIFI DEBUG-----------------");
-    Serial.println("Peer toevoegen mislukt");
-    Serial.println("------------------------------------------");
-    #endif
-    return;
+  if (!esp_now_is_peer_exist(ReceiveAdress)) {
+    if (esp_now_add_peer(&peerInfo) != ESP_OK){
+      #if DEBUG && WIFI
+      Serial.println("---------------WIFI DEBUG-----------------");
+      Serial.println("Toevoegen van broadcast-peer mislukt");
+      Serial.println("------------------------------------------");
+      #endif
+      return;
+    }
   }
 }
 
@@ -93,7 +97,7 @@ void loop() {
   Serial.println("Industrie vrachtwagen controle: ");
   Serial.println("*Druk op q om het menu te herstellen*"); Serial.println(" ");
 
-  CarChoice(); if (RestartLoop) return;
+  //CarChoice(); if (RestartLoop) return;
   FirstStation(); if (RestartLoop) return;
   FirstAmount(); if (RestartLoop) return;
   SecondStationAndAmount(); if (RestartLoop) return;
@@ -152,7 +156,7 @@ int ValidateInput(String Prompt, int MinimumValue, int MaximumValue){
 }
 
 //-------------------------------------Menu choices--------------------------------------------------------------
-void CarChoice(){
+/*void CarChoice(){
   UserInput = ValidateInput("Vrachtwagen 1 of 2?", 1, 2);
   if (RestartLoop) return;
   Car = UserInput;
@@ -160,7 +164,7 @@ void CarChoice(){
   Serial.println(Car); Serial.println(" ");
   if (Car == 1) Buf_Dest_ID = 3;
   if (Car == 2) Buf_Dest_ID = 4;
-}
+}*/
 
 void FirstStation(){
   bool error = false;
