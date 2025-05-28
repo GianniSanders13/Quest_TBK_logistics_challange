@@ -9,7 +9,7 @@
 #include <esp_now.h>
 
 // --------------------DEBUG --------------------------------------------------------
-#define DEBUG true              // Enable or disable all DEBUG prints
+#define DEBUG false              // Enable or disable all DEBUG prints
 #define OUTGOING_MESSAGE true  // " prints full outgoing message
 #define WIFI true              // " prints wifi related debug messages
 //------------------------------------------------------------------------------------
