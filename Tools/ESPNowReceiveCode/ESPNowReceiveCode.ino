@@ -14,7 +14,7 @@ typedef struct Message {
   uint8_t Data2;
   uint8_t Data3;
   uint8_t Data4;
-  uint8_t Data5; 
+  //uint8_t Data5; 
   uint8_t End_Key;
 } Message;
 
@@ -31,7 +31,7 @@ void OnDataReceive(const uint8_t *mac, const uint8_t *incomingData, int len) {
     Serial.print("Data2: "); Serial.println(IncomingMessage.Data2);
     Serial.print("Data3: "); Serial.println(IncomingMessage.Data3);
     Serial.print("Data4: "); Serial.println(IncomingMessage.Data4);
-    Serial.print("Data5: "); Serial.println(IncomingMessage.Data5);
+    //Serial.print("Data5: "); Serial.println(IncomingMessage.Data5);
   } else {
     Serial.println("Ongeldig berichtformaat");
   }
