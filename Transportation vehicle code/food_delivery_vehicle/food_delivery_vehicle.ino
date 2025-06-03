@@ -15,7 +15,7 @@
 //------------------------------------------------------------------------------------
 #define PICK_UP_DELAY 10000
 #define PIZZARIA_STATION_ID 4
-#define LOADING_TIME 1000
+#define LOADING_TIME 2500
 
 #define Own_ID_DEF 3
 #define Begin_Key_DEF 10
@@ -54,9 +54,9 @@
 // Motor control settings
 #define SPEED 225
 #define NORMALADJUST 0
-#define STEERING_SPEED 235
+#define STEERING_SPEED 240
 #define TURN_AROUND_DELAY 1450
-#define TURN_DELAY 700
+#define TURN_DELAY 800
 
 // RFID Reader
 #define SCK_PIN 13   // Serial Clock (SCK)
