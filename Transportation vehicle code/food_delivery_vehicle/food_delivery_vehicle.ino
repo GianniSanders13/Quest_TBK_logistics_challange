@@ -10,11 +10,12 @@
 #define DEBUG_DRIVING false    // driving direct with sensor values.
 #define DEBUG_FORMAT false
 #define TAG_ACTION true
-#define DEBUG_TAG_STEERING_DIRECTION false
+#define DEBUG_TAG_STEERING_DIRECTION true
 #define DEBUG_ROUTEPREP true
 //------------------------------------------------------------------------------------
 #define PICK_UP_DELAY 10000
 #define PIZZARIA_STATION_ID 4
+#define LOADING_TIME 1000
 
 #define Own_ID_DEF 3
 #define Begin_Key_DEF 10
@@ -222,7 +223,6 @@ rfidRouteMapStruct routeMap[] = {
   { 6, { 6, 1, 2, 8, 9, 3, 13, 4, 14, 5, 11, 15 }, 12 },
   { 7, { 6, 1, 2, 12, 3, 9, 17, 10, 4, 14, 5, 11, 15 }, 13 },
   { 8, { 6, 1, 2, 8, 9, 17, 10, 4, 14, 5, 11, 15 }, 12 }
-
 };
 const int RouteMaplength = sizeof(routeMap) / sizeof(routeMap[0]);
 
@@ -238,7 +238,6 @@ typedef struct Message {
   uint8_t Data2;  //(1e station > 0)
   uint8_t Data3;  //(2e station > 0, of 0 wanneer nvt)
   uint8_t Data4;  //(3e station > 0, of 0 wanneer nvt)
-  uint8_t Data5;  //(4e station > 0, of 0 wanneer nvt)
   uint8_t End_Key;
 } Message;
 
@@ -255,7 +254,7 @@ uint8_t routeIndicator = 0;
 uint8_t stop1;
 uint8_t stop2;
 uint8_t stop3;
-uint8_t stop4;
+
 
 // --- Motor functies ---
 void Stop();
@@ -346,9 +345,12 @@ void loop() {
     Stop();
     setLEDColor(LED_GREEN);
     if (NewStoredMessage) {
+      setLEDColor(LED_RED);
       formatMessage();
       routePrep();
+      delay(LOADING_TIME);
       setLEDColor(LED_OFF);
+      NewStoredMessage = false;
     }
   }
 
@@ -394,7 +396,6 @@ void formatMessage() {
   stop1 = StoredMessage.Data2;
   stop2 = StoredMessage.Data3;
   stop3 = StoredMessage.Data4;
-  stop4 = StoredMessage.Data5;
 }
 
 // --- Motor functies ---
@@ -637,6 +638,8 @@ bool intersection(uint16_t nextTagId) {
 #if DEBUG && DEBUG_TAG_STEERING_DIRECTION
   Serial.print("Direction on tag: ");
   Serial.println(debugMessage);
+  Serial.print("next id");
+  Serial.println(nextTagId);
   Serial.println();
 #endif
 
@@ -656,16 +659,17 @@ void rfidTagAction() {
       Stop();
       debugMessage = "Tag station";
 
-      if (sID == stop1 || sID == stop2 || sID == stop3 || sID == stop4) {
+      if (sID == stop1 || sID == stop2 || sID == stop3) {
         setLEDColor(LED_RED);
         delay(PICK_UP_DELAY);
         setLEDColor(LED_OFF);
 
       } else if (sID == PIZZARIA_STATION_ID) {
         PizzariaStation = true;
-        break;
+        break; 
+      }
 
-      } else if (intersection(CurrentRoute[routeCounter])) {
+      if (intersection(CurrentRoute[routeCounter])) {
         routeCounter++;
       }
       break;
