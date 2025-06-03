@@ -36,7 +36,6 @@ typedef struct Message {
   uint8_t Data2;
   uint8_t Data3;
   uint8_t Data4;
-  uint8_t Data5;
   uint8_t End_Key;
 } Message;
 
@@ -46,23 +45,25 @@ Message OutgoingMessage;
 bool NewMessageReceived = false;
 int UserInput = 0;
 bool RestartLoop = false;
+bool Done = false;
 int Buf_Route = 0;
 int Buf_1e_Station = 0;
 int Buf_2e_Station = 0;
 int Buf_3e_Station = 0;
-int Buf_4e_Station = 0;
 
 //-------------------------------------Functie Prototypes--------------------------------------------------------------
 int ValidateInput(String Prompt, int MinimumValue, int MaximumValue);
+int ValidateInputFromList(String Prompt, int* ValidOptions, int OptionCount);
 void FillNextStation(int value);
-void RouteChoice();
-void StationChoice(int stationNumber, int stationValue);
-void StationChoices();
+void FirstStation();
+void SecondStation();
+void ThirdStation();
 void ShowPlanner();
 void SendMessage();
 void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int D3, int D4, int E_Key);
 void Reset();
 void ConfirmSending();
+void ConnectRoute();
 
 //-------------------------------------Setup and main loop--------------------------------------------------------------
 void setup(){
@@ -102,9 +103,11 @@ void loop(){
   Serial.println("Pizzatown vrachtwagen controle: ");
   Serial.println("*Druk op q om het menu te herstellen*"); Serial.println(" ");
 
-  RouteChoice(); if (RestartLoop) return;
-  StationChoices(); if (RestartLoop) return;
+  FirstStation();
+  if(!Done){SecondStation();}
+  if(!Done){ThirdStation();}
 
+  ConnectRoute();
   ShowPlanner();
   MakeMessage(Begin_Key_DEF,
               Dest_ID_DEF,
@@ -114,7 +117,6 @@ void loop(){
               Buf_1e_Station,
               Buf_2e_Station,
               Buf_3e_Station,
-              Buf_4e_Station,
               End_Key_DEF);
 
   ConfirmSending(); if (RestartLoop) return;
@@ -167,8 +169,6 @@ void FillNextStation(int value){
       Buf_2e_Station = value;
   } else if (Buf_3e_Station == 0){
       Buf_3e_Station = value;
-  } else if (Buf_4e_Station == 0){
-      Buf_4e_Station = value;
   } else{
       Serial.println("*Alles vol!*"); Serial.println(" ");
   }
@@ -176,94 +176,140 @@ void FillNextStation(int value){
 
 void Reset(){
   Buf_Route = 0;
+  Done = false;
   Buf_1e_Station = 0;
   Buf_2e_Station = 0;
   Buf_3e_Station = 0;
-  Buf_4e_Station = 0;
 }
 //-------------------------------------Menu choices--------------------------------------------------------------
-void RouteChoice(){
-  UserInput = ValidateInput("Welke route?: 1, 2, 3, 4, 5, 6, 7 of 8", 1, 8);
+void FirstStation(){
+  UserInput = ValidateInput("Naar welk huis wil je?: 1, 2, 3 of 4", 1, 4);
   if (RestartLoop) return;
-  Buf_Route = UserInput;
-  Serial.print("Je hebt ingevuld: "); Serial.println(Buf_Route); Serial.println(" ");
+  Serial.print("Je hebt ingevuld: "); Serial.println(UserInput); Serial.println(" ");
+  if(UserInput == 4){
+    FillNextStation(6);
+  }
+  else{
+    FillNextStation(UserInput);
+  }
+  if(UserInput == 3){
+    Done = true;
+  }
 }
 
-void StationChoice(int stationNumber, int stationValue){
-    String prompt = "Wil je naar station " + String(stationNumber) + "?: Ja(1) of Nee(2)";
-    UserInput = ValidateInput(prompt, 1, 2);
+void SecondStation(){
+  if(Buf_1e_Station == 3){
+    return;
+  }
+  else{
+    UserInput = ValidateInput("Wil je naar een tweede huis?: Ja(1) of Nee(2)", 1, 2);
     if (RestartLoop) return;
     Serial.print("Je hebt ingevuld: "); Serial.println(UserInput); Serial.println(" ");
-    if (UserInput == 1) {
-        FillNextStation(stationValue);
+    if(UserInput == 1){
+      switch(Buf_1e_Station){
+        case 1:
+          UserInput = ValidateInput("Naar welk huis wil je?: 2, 3 of 4", 2, 4);
+          if (RestartLoop) return;
+          Serial.print("Je hebt ingevuld: "); Serial.println(UserInput); Serial.println(" ");
+          if(UserInput == 4){
+            FillNextStation(6);
+          }
+          else{
+            FillNextStation(UserInput);
+          }
+          if(UserInput == 3){
+            Done = true;
+          }
+        break;
+        case 2:
+          UserInput = ValidateInput("Wil je naar huis 3?: Ja(1) of Nee(2)", 1, 2);
+          if (RestartLoop) return;
+          Serial.print("Je hebt ingevuld: "); Serial.println(UserInput); Serial.println(" ");
+          if(UserInput == 1){
+            FillNextStation(3);
+          }
+          Done = true;
+        break;
+        case 6:
+          UserInput = ValidateInput("Wil je naar huis 3?: Ja(1) of Nee(2)", 1, 2);
+          if (RestartLoop) return;
+          Serial.print("Je hebt ingevuld: "); Serial.println(UserInput); Serial.println(" ");
+          if(UserInput == 1){
+            FillNextStation(3);
+          }
+          Done = true;
+        break;
+      }
     }
+    else{
+      Done = true;
+    }
+  } 
 }
 
-void StationChoices(){
-  switch (Buf_Route){
-    case 1:
-      Serial.println("Mogelijke stations binnen routen zijn: 1, 2 en 3"); Serial.println(" ");
-      StationChoice(1, Station1);
-      StationChoice(2, Station2);
-      StationChoice(3, Station3);
-      break;
-
-    case 2:
-      Serial.println("Mogelijke stations binnen routen zijn: 4 en 3"); Serial.println(" ");
-      StationChoice(4, Station4);
-      StationChoice(3, Station3);
-      break;
-
-    case 3:
-      Serial.println("Mogelijke stations binnen routen zijn: 1, 2 en 3"); Serial.println(" ");
-      StationChoice(1, Station1);
-      StationChoice(2, Station2);
-      StationChoice(3, Station3);
-      break;
-
-    case 4:
-      Serial.println("Mogelijke stations binnen routen zijn: 2 en 3"); Serial.println(" ");
-      StationChoice(2, Station2);
-      StationChoice(3, Station3);
-      break;
-
-    case 5:
-      Serial.println("Mogelijke stations binnen routen zijn: 1, 4 en 3"); Serial.println(" ");
-      StationChoice(1, Station1);
-      StationChoice(4, Station4);
-      StationChoice(3, Station3);
-      break;
-
-    case 6:
-      Serial.println("Mogelijke stations binnen routen zijn: 2 en 3"); Serial.println(" ");
-      StationChoice(2, Station2);
-      StationChoice(3, Station3);
-      break;
-
-    case 7:
-      Serial.println("Mogelijke stations binnen routen zijn: 1, 4 en 3"); Serial.println(" ");
-      StationChoice(1, Station1);
-      StationChoice(4, Station4);
-      break;
-
-    case 8:
-      Serial.println("Mogelijke stations binnen routen zijn: 4 en 3"); Serial.println(" ");
-      StationChoice(4, Station4);
-      StationChoice(3, Station3);
-      break;
-
-    default:
-      Buf_1e_Station = 0;
-      Buf_2e_Station = 0;
-      Buf_3e_Station = 0;
-      Buf_4e_Station = 0;
-      break;
+void ThirdStation(){
+  if(Buf_2e_Station == 3){
+    return;
+  }
+  else{
+    UserInput = ValidateInput("Wil je naar een derde huis?: Ja(1) of Nee(2)", 1, 2);
+    if (RestartLoop) return;
+    Serial.print("Je hebt ingevuld: "); Serial.println(UserInput); Serial.println(" ");
+    if(UserInput == 1){
+      UserInput = ValidateInput("Wil je naar huis 3?: Ja(1) of Nee(2)", 1, 2);
+      if (RestartLoop) return;
+      Serial.print("Je hebt ingevuld: "); Serial.println(UserInput); Serial.println(" ");
+      if(UserInput == 1){
+        FillNextStation(3);
+      }
+      Done = true;
+    }
+    else{
+      Done = true;
+    }
   }
 }
 
 void ConfirmSending(){
   UserInput = ValidateInput("Wil je instructies versturen?: Ja(1) of Nee(q)", 1, 1); Serial.println(" ");
   if (RestartLoop) return;
+}
+
+//-------------------------------------Route connect--------------------------------------------------------
+void ConnectRoute(){
+  if(Buf_1e_Station == 1 && Buf_2e_Station == 0 && Buf_3e_Station == 0){
+    Buf_Route = 8;
+  }
+  if(Buf_1e_Station == 1 && Buf_2e_Station == 2 && Buf_3e_Station == 0){
+    Buf_Route = 1;
+  }
+  if(Buf_1e_Station == 1 && Buf_2e_Station == 2 && Buf_3e_Station == 3){
+    Buf_Route = 1;
+  }
+  if(Buf_1e_Station == 1 && Buf_2e_Station == 3 && Buf_3e_Station == 0){
+    Buf_Route = 1;
+  }
+  if(Buf_1e_Station == 1 && Buf_2e_Station == 6 && Buf_3e_Station == 0){
+    Buf_Route = 7;
+  }
+  if(Buf_1e_Station == 1 && Buf_2e_Station == 6 && Buf_3e_Station == 3){
+    Buf_Route = 7;
+  }
+  if(Buf_1e_Station == 2 && Buf_2e_Station == 0 && Buf_3e_Station == 0){
+    Buf_Route = 4;
+  }
+  if(Buf_1e_Station == 2 && Buf_2e_Station == 3 && Buf_3e_Station == 0){
+    Buf_Route = 4;
+  }
+  if(Buf_1e_Station == 3 && Buf_2e_Station == 0 && Buf_3e_Station == 0){
+    Buf_Route = 2;
+  }
+  if(Buf_1e_Station == 6 && Buf_2e_Station == 0 && Buf_3e_Station == 0){
+    Buf_Route = 2;
+  }
+  if(Buf_1e_Station == 6 && Buf_2e_Station == 3 && Buf_3e_Station == 0){
+    Buf_Route = 2;
+  }
 }
 
 //-------------------------------------Planner--------------------------------------------------------------
@@ -273,8 +319,7 @@ void ShowPlanner(){
   Serial.print("Route: "); Serial.println(Buf_Route);
   Serial.print("Eerste station: "); Serial.println(Buf_1e_Station);
   Serial.print("Tweede station: "); Serial.println(Buf_2e_Station);
-  Serial.print("Derde station: "); Serial.println(Buf_3e_Station);
-  Serial.print("Vierde station: "); Serial.println(Buf_4e_Station);  
+  Serial.print("Derde station: "); Serial.println(Buf_3e_Station); 
   Serial.println("-----------------------------------"); Serial.println(" ");
 }
 
@@ -293,7 +338,6 @@ void SendMessage(){
       Serial.print  ("Data2: "); Serial.println(OutgoingMessage.Data2);
       Serial.print  ("Data3: "); Serial.println(OutgoingMessage.Data3);
       Serial.print  ("Data4: "); Serial.println(OutgoingMessage.Data4);
-      Serial.print  ("Data5: "); Serial.println(OutgoingMessage.Data5);
       Serial.print("End key: "); Serial.println(OutgoingMessage.End_Key);
       Serial.println("------------------------------------------------------"); Serial.println(" ");
     #endif
@@ -302,7 +346,7 @@ void SendMessage(){
   }
 }
 
-void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int D3, int D4, int D5, int E_Key){
+void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int D3, int D4, int E_Key){
   OutgoingMessage.Begin_Key = B_Key; 
   OutgoingMessage.Dest_ID = D_ID;
   OutgoingMessage.Source_ID = S_ID;
@@ -311,6 +355,5 @@ void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int 
   OutgoingMessage.Data2 = D2;
   OutgoingMessage.Data3 = D3;
   OutgoingMessage.Data4 = D4;
-  OutgoingMessage.Data5 = D5;
   OutgoingMessage.End_Key = E_Key;
 }
