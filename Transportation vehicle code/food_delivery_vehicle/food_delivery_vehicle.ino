@@ -1,16 +1,27 @@
+#include <esp_now.h>
+#include <WiFi.h>
 #include <SPI.h>
 #include <MFRC522.h>
 
 // --------------------DEBUG --------------------------------------------------------
-#define DEBUG true              // Enable or disable all DEBUG prints
-#define DEBUG_RFID false        // RFID reader debug (what the readers received)
-#define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
-#define DEBUG_DRIVING false     // driving direct with sensor values.
+#define DEBUG true             // Enable or disable all DEBUG prints
+#define DEBUG_RFID true        // RFID reader debug (what the readers received)
+#define DEBUG_RFID_CHECK true  // DEBUG print of de RFID tag id
+#define DEBUG_DRIVING false    // driving direct with sensor values.
 #define DEBUG_FORMAT false
 #define TAG_ACTION true
 #define DEBUG_TAG_STEERING_DIRECTION true
+#define DEBUG_ROUTEPREP true
 //------------------------------------------------------------------------------------
+#define PICK_UP_DELAY 10000
+#define PIZZARIA_STATION_ID 4
+#define LOADING_TIME 2500
 
+#define Own_ID_DEF 3
+#define Begin_Key_DEF 10
+#define End_Key_DEF 5
+
+#define MAX_ROUTE_LENGTH 14
 // Ultrasoon
 #define TRIG_PIN 20
 #define ECHO_PIN 19
@@ -41,11 +52,11 @@
 #define RIGHT_PWM_CHANNEL 1
 
 // Motor control settings
-#define SPEED 230
+#define SPEED 225
 #define NORMALADJUST 0
-#define STEERING_SPEED 220
-#define TURN_AROUND_DELAY 1150
-#define TURN_DELAY 550
+#define STEERING_SPEED 240
+#define TURN_AROUND_DELAY 1450
+#define TURN_DELAY 800
 
 // RFID Reader
 #define SCK_PIN 13   // Serial Clock (SCK)
@@ -54,23 +65,6 @@
 #define SS_PIN 10    // Slave Select (SS)
 #define RST_PIN 5    // Reset pin
 
-//ESP32 ledcontrol
-#define ESP_RED_PIN 14
-#define ESP_GREEN_PIN 15
-#define ESP_BLUE_PIN 16
-// colors esp led
-#define ESP32_LED_RED 0
-#define ESP32_LED_ORANGE 1
-#define ESP32_LED_YELLOW 2
-#define ESP32_LED_GREEN 3
-#define ESP32_LED_LIGHTGREEN 4
-#define ESP32_LED_CYAN 5
-#define ESP32_LED_BLUE 6
-#define ESP32_LED_PURPLE 7
-#define ESP32_LED_PINK 8
-#define ESP32_LED_WHITE 9
-#define ESP32_LED_OFF 10
-
 // UID byte defines
 #define UIDBYTE0 0
 #define UIDBYTE1 1
@@ -78,6 +72,26 @@
 #define UIDBYTE3 3
 #define SIZE_UID 4
 byte uidBytes[SIZE_UID];
+
+#define LED_RED 0
+#define LED_ORANGE 1
+#define LED_YELLOW 2
+#define LED_GREEN 3
+#define LED_LIGHTGREEN 4
+#define LED_CYAN 5
+#define LED_BLUE 6
+#define LED_PURPLE 7
+#define LED_PINK 8
+#define LED_WHITE 9
+#define LED_OFF 10
+
+#define RGB_R 24
+#define RGB_G 23
+#define RGB_B 22
+
+#define PWM_R 2
+#define PWM_G 3
+#define PWM_B 4
 
 // RFID format
 uint16_t tagId = 5;
@@ -100,7 +114,7 @@ struct rfidMapStruct {
   uint16_t straightTag;
   uint16_t rightTag;
 };
- // RFID tag map 
+// RFID tag map
 rfidMapStruct tagMap[] = {
   // Intersections
   // Tag 1
@@ -184,14 +198,63 @@ rfidMapStruct tagMap[] = {
   // Tag 17 (blauw station)
   { 17, 10, 0, 9, 0 },
   { 17, 9, 0, 10, 0 }
-  
+
 };
 
 const int mapLength = sizeof(tagMap) / sizeof(tagMap[0]);
-char routeCounter = 0;
 
-uint16_t testRoute[] = { 15, 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11 }; // for testing 
-uint8_t routeSize = sizeof(testRoute) / sizeof(testRoute[0]);
+char routeCounter = 0;
+// uint16_t testRoute[] = { 15, 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11 };  // for testing
+// uint8_t routeSize = sizeof(testRoute) / sizeof(testRoute[0]);
+
+struct rfidRouteMapStruct {
+  uint8_t RouteIndication;
+  uint16_t route[MAX_ROUTE_LENGTH];
+  uint8_t length;
+};
+
+rfidRouteMapStruct routeMap[] = {
+  { 0, { 15 }, 1 },
+  { 1, { 6, 1, 2, 12, 3, 13, 4, 14, 5, 11, 15 }, 11 },
+  { 2, { 6, 7, 8, 9, 17, 10, 4, 14, 5, 11, 15 }, 11 },
+  { 3, { 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11, 15 }, 12 },
+  { 4, { 6, 7, 8, 9, 3, 13, 4, 14, 5, 11, 15 }, 11 },
+  { 5, { 6, 7, 8, 2, 12, 3, 9, 17, 10, 4, 14, 5, 11, 15 }, 14 },
+  { 6, { 6, 1, 2, 8, 9, 3, 13, 4, 14, 5, 11, 15 }, 12 },
+  { 7, { 6, 1, 2, 12, 3, 9, 17, 10, 4, 14, 5, 11, 15 }, 13 },
+  { 8, { 6, 1, 2, 8, 9, 17, 10, 4, 14, 5, 11, 15 }, 12 }
+};
+const int RouteMaplength = sizeof(routeMap) / sizeof(routeMap[0]);
+
+uint16_t CurrentRoute[MAX_ROUTE_LENGTH];
+uint8_t routelength;
+
+typedef struct Message {
+  uint8_t Begin_Key;
+  uint8_t Dest_ID;
+  uint8_t Source_ID;
+  uint8_t Message_Kind;
+  uint8_t Data1;  //(Route)
+  uint8_t Data2;  //(1e station > 0)
+  uint8_t Data3;  //(2e station > 0, of 0 wanneer nvt)
+  uint8_t Data4;  //(3e station > 0, of 0 wanneer nvt)
+  uint8_t End_Key;
+} Message;
+
+// struct for storing message
+Message IncomingMessage;
+Message StoredMessage;
+
+// bool for new message flag
+bool NewStoredMessage = false;
+// bool for pizzastation flag
+bool PizzariaStation = false;
+
+uint8_t routeIndicator = 0;
+uint8_t stop1;
+uint8_t stop2;
+uint8_t stop3;
+
 
 // --- Motor functies ---
 void Stop();
@@ -210,13 +273,46 @@ void SensorCheck();
 bool readRFIDReader();
 bool formatRfidUid();
 
-// --- ESP32 LED control ---
-void ESP32LedCrontrol(int color);
+// RGB led backside
+void setRGB(uint8_t r, uint8_t g, uint8_t b);
+void setLEDColor(uint8_t color);
+
+
+// Callback voor ESP-NOW
+void OnDataReceive(const uint8_t *mac, const uint8_t *incomingData, int len);
+// Berichten decoderen
+void formatMessage();
+
+// arduinoooooooooo
+void setup();
+void loop();
+//-----------------------------------------------------------------------------------
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  Serial.println("Initiate");
+
+  ledcSetup(PWM_R, 5000, 8);
+  ledcAttachPin(RGB_R, PWM_R);
+  ledcSetup(PWM_G, 5000, 8);
+  ledcAttachPin(RGB_G, PWM_G);
+  ledcSetup(PWM_B, 5000, 8);
+  ledcAttachPin(RGB_B, PWM_B);
+
+  setLEDColor(LED_GREEN);
+
+  delay(5000);
+
+  WiFi.mode(WIFI_STA);
+  Serial.println("Wifi Started");
+  Serial.print("MAC adres receiver: ");
+  Serial.println(WiFi.macAddress());
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW init mislukt");
+    return;
+  }
+
+  esp_now_register_recv_cb(OnDataReceive);
   // Pins
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
@@ -236,20 +332,28 @@ void setup() {
   rfid.PCD_Init();                                 // init MFRC522
   //rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
 
-  pinMode(ESP_RED_PIN, OUTPUT);
-  pinMode(ESP_GREEN_PIN, OUTPUT);
-  pinMode(ESP_BLUE_PIN, OUTPUT);
+
+  routePrep();
+  setLEDColor(LED_OFF);
 }
 
 void loop() {
   unsigned long currentMillis = millis();
   int Position = 0;
 
-  if (routeCounter == routeSize) {
-    routeCounter = 0;
+  while (PizzariaStation) {  // if by the pizza station wait till new message
+    Stop();
+    setLEDColor(LED_GREEN);
+    if (NewStoredMessage) {
+      setLEDColor(LED_RED);
+      formatMessage();
+      routePrep();
+      delay(LOADING_TIME);
+      setLEDColor(LED_OFF);
+      NewStoredMessage = false;
+    }
   }
 
-  // mesh.                                          ();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
     if (readRFIDReader()) {
@@ -260,9 +364,38 @@ void loop() {
   }
 
   SensorCheck();
-  if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
-    Stop();
+  // if (Ultrasoon_Check() < DISTANCE_THRESHOLD_CM) {
+  //   Stop();
+  // }
+}
+
+//-----------------------------------Wifi---------------------------------------------------------------
+void OnDataReceive(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  memcpy(&IncomingMessage, incomingData, sizeof(IncomingMessage));
+  Serial.println("Bericht ontvangen:");
+  if (IncomingMessage.Begin_Key == Begin_Key_DEF && IncomingMessage.End_Key == End_Key_DEF) {
+    if (PizzariaStation) {
+      NewStoredMessage = true;
+      StoredMessage = IncomingMessage;
+      PizzariaStation = false;
+    } else {
+      NewStoredMessage = false;
+    }
+    Serial.printf("Van: %d -> Voor: %d\n", IncomingMessage.Source_ID, IncomingMessage.Dest_ID);
+    Serial.printf("Type: %d\n", IncomingMessage.Message_Kind);
+    Serial.printf("Eerste station: %d, Hoeveel: %d\n", IncomingMessage.Data1, IncomingMessage.Data2);
+    Serial.printf("Tweede station: %d, Hoeveel: %d\n", IncomingMessage.Data3, IncomingMessage.Data4);
+  } else {
+    Serial.println("Ongeldig berichtformaat");
   }
+}
+
+// // Format incomming messages
+void formatMessage() {
+  routeIndicator = StoredMessage.Data1;
+  stop1 = StoredMessage.Data2;
+  stop2 = StoredMessage.Data3;
+  stop3 = StoredMessage.Data4;
 }
 
 // --- Motor functies ---
@@ -293,28 +426,35 @@ void Right() {
 }
 
 void TurnAround() {
+  setLEDColor(LED_PINK);
   digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, STEERING_SPEED);
   ledcWrite(RIGHT_PWM_CHANNEL, STEERING_SPEED);
   delay(TURN_AROUND_DELAY);
+  setLEDColor(LED_OFF);
 }
 
 void TurnLeft() {
+  setLEDColor(LED_CYAN);
   digitalWrite(LEFT_MOTOR_DIR, BACKWARD);
   digitalWrite(RIGHT_MOTOR_DIR, FORWARD);
   ledcWrite(LEFT_PWM_CHANNEL, STEERING_SPEED);
   ledcWrite(RIGHT_PWM_CHANNEL, STEERING_SPEED);
   delay(TURN_DELAY);
+  setLEDColor(LED_OFF);
 }
 
 void TurnRight() {
+  setLEDColor(LED_BLUE);
   digitalWrite(LEFT_MOTOR_DIR, FORWARD);
   digitalWrite(RIGHT_MOTOR_DIR, BACKWARD);
   ledcWrite(LEFT_PWM_CHANNEL, STEERING_SPEED);
   ledcWrite(RIGHT_PWM_CHANNEL, STEERING_SPEED);
   delay(TURN_DELAY);
+  setLEDColor(LED_OFF);
 }
+
 
 // --- Sensor functies ---
 int Ultrasoon_Check() {
@@ -367,57 +507,31 @@ void SensorCheck() {
 #endif
 }
 
-void ESP32LedCrontrol(int color) {
+// Selecteert kleur op basis van de LED_x constanten
+void setLEDColor(uint8_t color) {
   switch (color) {
-    case 0:  // UIT
-      digitalWrite(ESP_RED_PIN, HIGH);
-      digitalWrite(ESP_GREEN_PIN, HIGH);
-      digitalWrite(ESP_BLUE_PIN, HIGH);
-      break;
-
-    case 1:  // ROOD
-      digitalWrite(ESP_RED_PIN, LOW);
-      digitalWrite(ESP_GREEN_PIN, HIGH);
-      digitalWrite(ESP_BLUE_PIN, HIGH);
-      break;
-
-    case 2:  // GROEN
-      digitalWrite(ESP_RED_PIN, HIGH);
-      digitalWrite(ESP_GREEN_PIN, LOW);
-      digitalWrite(ESP_BLUE_PIN, HIGH);
-      break;
-
-    case 3:  // BLAUW
-      digitalWrite(ESP_RED_PIN, HIGH);
-      digitalWrite(ESP_GREEN_PIN, HIGH);
-      digitalWrite(ESP_BLUE_PIN, LOW);
-      break;
-
-    case 4:  // GEEL (rood + groen)
-      digitalWrite(ESP_RED_PIN, LOW);
-      digitalWrite(ESP_GREEN_PIN, LOW);
-      digitalWrite(ESP_BLUE_PIN, HIGH);
-      break;
-
-    case 5:  // MAGENTA (rood + blauw)
-      digitalWrite(ESP_RED_PIN, LOW);
-      digitalWrite(ESP_GREEN_PIN, HIGH);
-      digitalWrite(ESP_BLUE_PIN, LOW);
-      break;
-
-    case 6:  // CYAAN (groen + blauw)
-      digitalWrite(ESP_RED_PIN, HIGH);
-      digitalWrite(ESP_GREEN_PIN, LOW);
-      digitalWrite(ESP_BLUE_PIN, LOW);
-      break;
-
-    case 7:  // WIT (rood + groen + blauw)
-      digitalWrite(ESP_RED_PIN, LOW);
-      digitalWrite(ESP_GREEN_PIN, LOW);
-      digitalWrite(ESP_BLUE_PIN, LOW);
-      break;
+    case LED_RED: setRGB(255, 0, 0); break;
+    case LED_ORANGE: setRGB(255, 80, 0); break;
+    case LED_YELLOW: setRGB(255, 255, 0); break;
+    case LED_GREEN: setRGB(0, 255, 0); break;
+    case LED_LIGHTGREEN: setRGB(100, 255, 100); break;
+    case LED_CYAN: setRGB(0, 255, 255); break;
+    case LED_BLUE: setRGB(0, 0, 255); break;
+    case LED_PURPLE: setRGB(128, 0, 128); break;
+    case LED_PINK: setRGB(255, 105, 180); break;
+    case LED_WHITE: setRGB(255, 255, 255); break;
+    case LED_OFF: setRGB(0, 0, 0); break;
+    default: setRGB(0, 0, 0); break;
   }
 }
+
+// Stelt de RGB-waarde in (0-255)
+void setRGB(uint8_t r, uint8_t g, uint8_t b) {
+  ledcWrite(PWM_R, r);
+  ledcWrite(PWM_G, g);
+  ledcWrite(PWM_B, b);
+}
+
 
 bool readRFIDReader() {
 
@@ -451,7 +565,6 @@ bool formatRfidUid() {
   sID = uidBytes[UIDBYTE3];
 
 #if DEBUG && DEBUG_FORMAT
-
   Serial.println("---------------UID Format ID Tag-----------------");
   Serial.print("Tag Id: ");
   Serial.println(tagId);
@@ -466,6 +579,31 @@ bool formatRfidUid() {
   return true;
 }
 
+void routePrep() {
+  char route = 0;
+  for (int i = 0; i < RouteMaplength; i++) {
+    if (routeMap[i].RouteIndication == routeIndicator) {
+      route = i;
+      routelength = routeMap[i].length;
+      for (uint8_t j = 0; j < routelength; j++)
+        CurrentRoute[j] = routeMap[i].route[j];
+    }
+  }
+  routeCounter = 0;
+#if DEBUG && DEBUG_ROUTEPREP
+  Serial.print("Route: ");
+  Serial.println(route);
+  Serial.print("CurrentRoute (length: ");
+  Serial.print(routelength);
+  Serial.print("): ");
+  for (uint8_t j = 0; j < routelength; j++) {
+    Serial.print(CurrentRoute[j]);
+    if (j < routelength - 1) Serial.print(" -> ");
+  }
+  Serial.println();
+#endif
+}
+
 bool intersection(uint16_t nextTagId) {
   String debugMessage = "tag not found in bitmap";
   bool returnValue;
@@ -474,12 +612,12 @@ bool intersection(uint16_t nextTagId) {
       if (tagMap[i].straightTag == nextTagId) {
         debugMessage = "Go forward to tag";
         Forward();
-        ESP32LedCrontrol(2);  // groen
+
         returnValue = true;
       } else if (tagMap[i].leftTag == nextTagId) {
         debugMessage = "Go left to tag";
         TurnLeft();
-        ESP32LedCrontrol(3);  // blauw
+
         returnValue = true;
       } else if (tagMap[i].rightTag == nextTagId) {
         debugMessage = "Go right to tag";
@@ -488,11 +626,11 @@ bool intersection(uint16_t nextTagId) {
       } else if (tagMap[i].lastTagId == nextTagId) {
         debugMessage = "Turn around for tag";
         TurnAround();
-        ESP32LedCrontrol(5);  // paars
+
         returnValue = true;
       } else {
         debugMessage = "Next tag not connected to this intersection";
-        ESP32LedCrontrol(1);  // rood
+
         returnValue = false;
       }
     }
@@ -500,6 +638,8 @@ bool intersection(uint16_t nextTagId) {
 #if DEBUG && DEBUG_TAG_STEERING_DIRECTION
   Serial.print("Direction on tag: ");
   Serial.println(debugMessage);
+  Serial.print("next id");
+  Serial.println(nextTagId);
   Serial.println();
 #endif
 
@@ -512,20 +652,31 @@ void rfidTagAction() {
     case 0:
       Stop();
       debugMessage = "Tag intersection";
-      if (intersection(testRoute[routeCounter]))
+      if (intersection(CurrentRoute[routeCounter]))
         routeCounter++;
-
       break;
     case 1:
       Stop();
       debugMessage = "Tag station";
-      if (intersection(testRoute[routeCounter]))
-        routeCounter++;
 
+      if (sID == stop1 || sID == stop2 || sID == stop3) {
+        setLEDColor(LED_RED);
+        delay(PICK_UP_DELAY);
+        setLEDColor(LED_OFF);
+
+      } else if (sID == PIZZARIA_STATION_ID) {
+        PizzariaStation = true;
+        break; 
+      }
+
+      if (intersection(CurrentRoute[routeCounter])) {
+        routeCounter++;
+      }
       break;
     default:
       debugMessage = "Tag action Unknown";
   }
+
 #if DEBUG && TAG_ACTION
   Serial.print("Tag action: ");
   Serial.println(debugMessage);
