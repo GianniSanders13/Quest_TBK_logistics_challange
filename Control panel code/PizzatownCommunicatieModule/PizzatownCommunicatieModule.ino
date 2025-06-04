@@ -40,7 +40,7 @@ typedef struct Message {
 } Message;
 
 //Global variables
-uint8_t ReceiveAdress[] = {0xEC, 0xDA, 0x3B, 0x60, 0x0B, 0x2C};
+uint8_t ReceiveAdress[] = {0xEC, 0xDA, 0x3B, 0x61, 0xA2, 0x84};
 Message OutgoingMessage;
 bool NewMessageReceived = false;
 int UserInput = 0;

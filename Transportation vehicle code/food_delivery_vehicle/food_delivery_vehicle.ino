@@ -371,6 +371,10 @@ void formatMessage() {
   stop1 = StoredMessage.Data2;
   stop2 = StoredMessage.Data3;
   stop3 = StoredMessage.Data4;
+
+  routeCounter = 0;         // Reset to start of new route
+  oldTagId = 0;             // Force recognition of first tag
+  tagId = 0;                // Clear any stale tag
 }
 
 // --- Motor functies ---
