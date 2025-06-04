@@ -13,8 +13,8 @@
 #define DEBUG_TAG_STEERING_DIRECTION true
 #define DEBUG_ROUTEPREP true
 //------------------------------------------------------------------------------------
-#define PICK_UP_DELAY 10000
-#define PIZZARIA_STATION_ID 4
+#define PICK_UP_DELAY 5000
+#define PIZZARIA_STATION_ID 13
 #define LOADING_TIME 2500
 
 #define Own_ID_DEF 3
@@ -117,15 +117,10 @@ struct rfidMapStruct {
 // RFID tag map
 rfidMapStruct tagMap[] = {
   // Intersections
-  // Tag 1
-  { 1, 16, 2, 0, 6 },
-  { 1, 6, 16, 2, 0 },
-  { 1, 2, 0, 6, 16 },
-
   // Tag 2
-  { 2, 1, 0, 12, 8 },
-  { 2, 8, 1, 0, 12 },
-  { 2, 12, 8, 1, 0 },
+  { 2, 6, 0, 12, 8 },
+  { 2, 8, 6, 0, 12 },
+  { 2, 12, 8, 6, 0 },
 
   // Tag 3
   { 3, 12, 0, 13, 9 },
@@ -137,16 +132,14 @@ rfidMapStruct tagMap[] = {
   { 4, 10, 13, 0, 14 },
   { 4, 14, 10, 13, 0 },
 
-  // Tag 5
-  { 5, 14, 11, 6, 0 },
-  { 5, 11, 6, 0, 14 },
-  { 5, 6, 0, 14, 11 },
+  // Tag 5 (blauw station)
+  { 5, 14, 0, 6, 0 },
+  { 5, 6, 0, 14, 0 },
 
   // Tag 6
-  { 6, 5, 15, 1, 7 },
-  { 6, 15, 1, 7, 5 },
-  { 6, 1, 7, 5, 15 },
-  { 6, 7, 5, 15, 1 },
+  { 6, 5, 0, 2, 7 },
+  { 6, 2, 7, 5, 0 },
+  { 6, 7, 5, 0, 2 },
 
   // Tag 7
   { 7, 6, 8, 0, 10 },
@@ -168,14 +161,9 @@ rfidMapStruct tagMap[] = {
   { 10, 4, 7, 0, 17 },
   { 10, 7, 0, 17, 4 },
 
-  // Tag 11
-  { 11, 16, 15, 5, 0 },
-  { 11, 15, 5, 0, 16 },
-  { 11, 5, 0, 16, 15 },
-
   // stations
-  // Tag 12
-  { 12, 2, 0, 3, 0 },
+  // Tag 12 (blauw station)
+  { 12 , 2, 0, 3, 0 },
   { 12, 3, 0, 2, 0 },
 
   // Tag 13 (blauw station)
@@ -186,19 +174,9 @@ rfidMapStruct tagMap[] = {
   { 14, 4, 0, 5, 0 },
   { 14, 5, 0, 4, 0 },
 
-  // Tag 15 (blauw station)
-  { 15, 11, 0, 6, 0 },
-  { 15, 6, 0, 11, 0 },
-
-
-  // Tag 16 (blauw station)
-  { 16, 11, 0, 1, 0 },
-  { 16, 1, 0, 11, 0 },
-
   // Tag 17 (blauw station)
   { 17, 10, 0, 9, 0 },
   { 17, 9, 0, 10, 0 }
-
 };
 
 const int mapLength = sizeof(tagMap) / sizeof(tagMap[0]);
@@ -214,15 +192,15 @@ struct rfidRouteMapStruct {
 };
 
 rfidRouteMapStruct routeMap[] = {
-  { 0, { 15 }, 1 },
-  { 1, { 6, 1, 2, 12, 3, 13, 4, 14, 5, 11, 15 }, 11 },
-  { 2, { 6, 7, 8, 9, 17, 10, 4, 14, 5, 11, 15 }, 11 },
-  { 3, { 6, 7, 8, 2, 12, 3, 13, 4, 14, 5, 11, 15 }, 12 },
-  { 4, { 6, 7, 8, 9, 3, 13, 4, 14, 5, 11, 15 }, 11 },
-  { 5, { 6, 7, 8, 2, 12, 3, 9, 17, 10, 4, 14, 5, 11, 15 }, 14 },
-  { 6, { 6, 1, 2, 8, 9, 3, 13, 4, 14, 5, 11, 15 }, 12 },
-  { 7, { 6, 1, 2, 12, 3, 9, 17, 10, 4, 14, 5, 11, 15 }, 13 },
-  { 8, { 6, 1, 2, 8, 9, 17, 10, 4, 14, 5, 11, 15 }, 12 }
+  //{ 0, { 5 }, 1 },
+  { 1, {6, 2, 12, 3, 13, 4, 14, 5},              8},
+  { 2, {6, 7, 8, 9, 17, 10, 4, 14, 5},           9},
+  { 3, {6, 7, 8, 2, 12, 3, 13, 4, 14, 5},        10},
+  { 4, {6, 7, 8, 9, 3, 13, 4, 14, 5 },           9},
+  { 5, {6, 7, 8, 2, 12, 3, 9, 17, 10, 4, 14, 5}, 12},
+  { 6, {6, 2, 8, 9, 3, 13, 4, 14, 5},            9},
+  { 7, {6, 2, 12, 3, 9, 17, 10, 4, 14, 5},       10},
+  { 8, {6, 2, 8, 9, 17, 10, 4, 14, 5},           9}
 };
 const int RouteMaplength = sizeof(routeMap) / sizeof(routeMap[0]);
 
@@ -254,7 +232,6 @@ uint8_t routeIndicator = 0;
 uint8_t stop1;
 uint8_t stop2;
 uint8_t stop3;
-
 
 // --- Motor functies ---
 void Stop();
@@ -331,8 +308,6 @@ void setup() {
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);  // SCK, MISO, MOSI, SS
   rfid.PCD_Init();                                 // init MFRC522
   //rfid.PCD_SetAntennaGain(MFRC522::PCD_RxGain::RxGain_max);
-
-
   routePrep();
   setLEDColor(LED_OFF);
 }
