@@ -18,7 +18,7 @@
 #define Begin_Key_DEF 10
 #define Message_Kind_DEF 1
 #define End_Key_DEF 5
-#define MAX_CARGO 5
+#define MAX_CARGO 8
 
 typedef struct Message {
   uint8_t Begin_Key;
@@ -29,6 +29,8 @@ typedef struct Message {
   uint8_t Data2;
   uint8_t Data3;
   uint8_t Data4;
+  uint8_t Data5;
+  uint8_t Data6;
   uint8_t End_Key;
 } Message;
 
@@ -44,6 +46,8 @@ int Buf_1e_Station = 0;
 int Buf_1e_Amount = 0;
 int Buf_2e_Station = 0;
 int Buf_2e_Amount = 0;
+int Buf_3e_Station = 0;
+int Buf_3e_Amount = 0;
 
 //-------------------------------------Functie Prototypes--------------------------------------------------------------
 int ValidateInput(String Prompt, int MinimumValue, int MaximumValue);
@@ -101,6 +105,7 @@ void loop() {
   FirstStation(); if (RestartLoop) return;
   FirstAmount(); if (RestartLoop) return;
   SecondStationAndAmount(); if (RestartLoop) return;
+  ThirdStationAndAmount(); if (RestartLoop) return;
 
   ShowPlanner();
   MakeMessage(Begin_Key_DEF,
@@ -111,6 +116,8 @@ void loop() {
               Buf_1e_Amount,
               Buf_2e_Station,
               Buf_2e_Amount,
+              Buf_3e_Station,
+              Buf_3e_Amount,
               End_Key_DEF);
   
   ConfirmSending(); if (RestartLoop) return;
@@ -175,8 +182,9 @@ void FirstStation(){
   Serial.println(Buf_1e_Station); Serial.println(" ");
 }
 
-void FirstAmount(){
-  UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3, 4 of 5", 1, 5);
+void FirstAmount() {
+  String prompt = "Hoeveel wil je ophalen? (1 t/m " + String(MAX_CARGO) + "):";
+  UserInput = ValidateInput(prompt, 1, MAX_CARGO);
   if (RestartLoop) return;
   Buf_1e_Amount = UserInput;
   Serial.print("Je hebt ingevuld: ");
@@ -228,12 +236,12 @@ void SecondStationAndAmount(){
         if (RestartLoop) return;
         Choice = UserInput;
         Serial.print("Je hebt ingevuld: ");
-        if(Choice){
-          Buf_2e_Station = 0;
+        if(Choice == 1){
+          Buf_2e_Station = 5;
         } else{
           Buf_2e_Station = 0;
         }
-        Serial.println(Buf_2e_Station); Serial.println(" ");
+        Serial.println(Choice); Serial.println(" ");
         SecondAmount();
       break;
       case 5:
@@ -253,27 +261,107 @@ void SecondAmount(){
   if(Buf_2e_Station == 0){
     Buf_2e_Amount = 0;
   } else{
-    switch (Buf_1e_Amount) {
-      case 1:
-        UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2, 3 of 4?", 1, 4);
-        if (RestartLoop) return;
-        break;
-      case 2:
-        UserInput = ValidateInput("Hoeveel wil je ophalen?: 1, 2 of 3?", 1, 3);
-        if (RestartLoop) return;
-        break;
-      case 3:
-        UserInput = ValidateInput("Hoeveel wil je ophalen?: 1 of 2?", 1, 2);
-        if (RestartLoop) return;
-        break;
-      case 4:
-        Serial.println("1 goed wordt opgehaald");
-        Buf_2e_Amount = 1;
-        return;
-    } 
+    int max_second_amount = MAX_CARGO - Buf_1e_Amount;
+    if (max_second_amount <= 0) {
+      Serial.println("Geen ruimte meer voor extra goederen.");
+      Buf_2e_Amount = 0;
+      return;
+    }
+
+    String prompt = "Hoeveel wil je ophalen? (max " + String(max_second_amount) + "): ";
+    UserInput = ValidateInput(prompt, 1, max_second_amount);
+    if (RestartLoop) return;
+
     Buf_2e_Amount = UserInput;
     Serial.print("Je hebt ingevuld: ");
     Serial.println(Buf_2e_Amount); Serial.println(" ");
+  }
+}
+
+void ThirdStationAndAmount(){
+  int Choice = 0;
+  if(MAX_CARGO - Buf_1e_Amount - Buf_2e_Amount > 0) {
+    switch (Buf_2e_Station) {
+      case 1:
+        UserInput = ValidateInput("Welk derde station?: Deeg(2), tomaat(3), kaas(4), kip(5) of geen(6)? ", 2, 6);
+        if (RestartLoop) return;
+        if(UserInput == 6){
+          Buf_3e_Station = 0;
+        } else{
+          Buf_3e_Station = UserInput;
+        }
+        Serial.print("Je hebt ingevuld: ");
+        Serial.println(Buf_3e_Station); Serial.println(" ");
+        ThirdAmount();
+      break;
+      case 2:
+        UserInput = ValidateInput("Welk derde station?: Tomaat(3), kaas(4), kip(5) of geen(6)? ", 3, 6);
+        if (RestartLoop) return;
+        if(UserInput == 6){
+          Buf_3e_Station = 0;
+        } else{
+          Buf_3e_Station = UserInput;
+        }
+        Serial.print("Je hebt ingevuld: ");
+        Serial.println(Buf_3e_Station); Serial.println(" ");
+        ThirdAmount();
+      break;
+      case 3:
+        UserInput = ValidateInput("Welk derde station?: Kaas(4), kip(5) of geen(6)? ", 4, 6);
+        if (RestartLoop) return;
+        if(UserInput == 6){
+          Buf_3e_Station = 0;
+        } else{
+          Buf_3e_Station = UserInput;
+        }
+        Serial.print("Je hebt ingevuld: ");
+        Serial.println(Buf_3e_Station); Serial.println(" ");
+        ThirdAmount();
+      break;
+      case 4:
+        UserInput = ValidateInput("Wil je naar station kip?: Ja(1) of Nee(2)", 1, 2);
+        if (RestartLoop) return;
+        Choice = UserInput;
+        Serial.print("Je hebt ingevuld: ");
+        if(Choice == 1){
+          Buf_3e_Station = 5;
+        } else{
+          Buf_3e_Station = 0;
+        }
+        Serial.println(Choice); Serial.println(" ");
+        ThirdAmount();
+      break;
+      case 5:
+        Serial.println("Geen volgende station mogelijk!"); Serial.println(" ");
+        Buf_3e_Station = 0;
+        Buf_3e_Amount = 0;
+      break;
+    }
+  } else {
+    Serial.println("Geen volgende station mogelijk!"); Serial.println(" ");
+    Buf_3e_Station = 0;
+    Buf_3e_Amount = 0;
+  }
+}
+
+void ThirdAmount(){
+  if(Buf_3e_Station == 0){
+    Buf_3e_Amount = 0;
+  } else{
+    int max_third_amount = MAX_CARGO - Buf_1e_Amount - Buf_2e_Amount;
+    if (max_third_amount <= 0) {
+      Serial.println("Geen ruimte meer voor extra goederen.");
+      Buf_3e_Amount = 0;
+      return;
+    }
+
+    String prompt = "Hoeveel wil je ophalen? (max " + String(max_third_amount) + "): ";
+    UserInput = ValidateInput(prompt, 1, max_third_amount);
+    if (RestartLoop) return;
+
+    Buf_3e_Amount = UserInput;
+    Serial.print("Je hebt ingevuld: ");
+    Serial.println(Buf_3e_Amount); Serial.println(" ");
   }
 }
 
@@ -291,6 +379,8 @@ void ShowPlanner(){
   Serial.print("Hoeveelheid: "); Serial.println(Buf_1e_Amount);
   Serial.print("Tweede station: "); Serial.println(Buf_2e_Station);
   Serial.print("Hoeveelheid: "); Serial.println(Buf_2e_Amount);
+  Serial.print("Derde station: "); Serial.println(Buf_3e_Station);
+  Serial.print("Hoeveelheid: "); Serial.println(Buf_3e_Amount);
   Serial.println("-----------------------------------"); Serial.println(" ");
 }
 
@@ -309,6 +399,8 @@ void SendMessage(){
       Serial.print  ("Data2: "); Serial.println(OutgoingMessage.Data2);
       Serial.print  ("Data3: "); Serial.println(OutgoingMessage.Data3);
       Serial.print  ("Data4: "); Serial.println(OutgoingMessage.Data4);
+      Serial.print  ("Data5: "); Serial.println(OutgoingMessage.Data5);
+      Serial.print  ("Data6: "); Serial.println(OutgoingMessage.Data6);
       Serial.print("End key: "); Serial.println(OutgoingMessage.End_Key);
       Serial.println("------------------------------------------------------"); Serial.println(" ");
     #endif
@@ -317,7 +409,7 @@ void SendMessage(){
   }
 }
 
-void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int D3, int D4, int E_Key){
+void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int D3, int D4, int D5, int D6, int E_Key){
   OutgoingMessage.Begin_Key = B_Key; 
   OutgoingMessage.Dest_ID = D_ID;
   OutgoingMessage.Source_ID = S_ID;
@@ -326,5 +418,7 @@ void MakeMessage(int B_Key, int D_ID, int S_ID, int M_Kind, int D1, int D2, int 
   OutgoingMessage.Data2 = D2;
   OutgoingMessage.Data3 = D3;
   OutgoingMessage.Data4 = D4;
+  OutgoingMessage.Data5 = D5;
+  OutgoingMessage.Data6 = D6;
   OutgoingMessage.End_Key = E_Key;
 }
