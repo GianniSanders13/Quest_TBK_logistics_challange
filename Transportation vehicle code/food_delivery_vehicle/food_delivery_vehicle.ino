@@ -6,13 +6,14 @@
 // --------------------DEBUG --------------------------------------------------------
 #define DEBUG true             // Enable or disable all DEBUG prints
 #define DEBUG_RFID true        // RFID reader debug (what the readers received)
-#define DEBUG_RFID_CHECK true  // DEBUG print of de RFID tag id
+#define DEBUG_RFID_CHECK false // DEBUG print of de RFID tag id
 #define DEBUG_DRIVING false    // driving direct with sensor values.
 #define DEBUG_FORMAT false
 #define TAG_ACTION true
 #define DEBUG_TAG_STEERING_DIRECTION true
-#define DEBUG_ROUTEPREP true
+#define DEBUG_ROUTEPREP false
 //------------------------------------------------------------------------------------
+
 #define PICK_UP_DELAY 5000
 #define PIZZARIA_STATION_ID 13
 #define LOADING_TIME 2500
@@ -55,8 +56,8 @@
 #define SPEED 225
 #define NORMALADJUST 0
 #define STEERING_SPEED 240
-#define TURN_AROUND_DELAY 1450
-#define TURN_DELAY 800
+#define TURN_AROUND_DELAY 1200
+#define TURN_DELAY 600
 
 // RFID Reader
 #define SCK_PIN 13   // Serial Clock (SCK)
@@ -163,7 +164,7 @@ rfidMapStruct tagMap[] = {
 
   // stations
   // Tag 12 (blauw station)
-  { 12 , 2, 0, 3, 0 },
+  { 12, 2, 0, 3, 0 },
   { 12, 3, 0, 2, 0 },
 
   // Tag 13 (blauw station)
@@ -193,14 +194,14 @@ struct rfidRouteMapStruct {
 
 rfidRouteMapStruct routeMap[] = {
   //{ 0, { 5 }, 1 },
-  { 1, {6, 2, 12, 3, 13, 4, 14, 5},              8},
-  { 2, {6, 7, 8, 9, 17, 10, 4, 14, 5},           9},
-  { 3, {6, 7, 8, 2, 12, 3, 13, 4, 14, 5},        10},
-  { 4, {6, 7, 8, 9, 3, 13, 4, 14, 5 },           9},
-  { 5, {6, 7, 8, 2, 12, 3, 9, 17, 10, 4, 14, 5}, 12},
-  { 6, {6, 2, 8, 9, 3, 13, 4, 14, 5},            9},
-  { 7, {6, 2, 12, 3, 9, 17, 10, 4, 14, 5},       10},
-  { 8, {6, 2, 8, 9, 17, 10, 4, 14, 5},           9}
+  { 1, { 2, 12, 3, 13, 4, 14, 5 }, 7 },
+  { 2, { 7, 8, 9, 17, 10, 4, 14, 5 }, 8 },
+  { 3, { 7, 8, 2, 12, 3, 13, 4, 14, 5 }, 9 },
+  { 4, { 7, 8, 9, 3, 13, 4, 14, 5 }, 8 },
+  { 5, { 7, 8, 2, 12, 3, 9, 17, 10, 4, 14, 5 }, 11 },
+  { 6, { 2, 8, 9, 3, 13, 4, 14, 5 }, 8 },
+  { 7, { 2, 12, 3, 9, 17, 10, 4, 14, 5 }, 9 },
+  { 8, { 2, 8, 9, 17, 10, 4, 14, 5 }, 8 }
 };
 const int RouteMaplength = sizeof(routeMap) / sizeof(routeMap[0]);
 
@@ -277,7 +278,7 @@ void setup() {
 
   setLEDColor(LED_GREEN);
 
-  delay(5000);
+  delay(2000);
 
   WiFi.mode(WIFI_STA);
   Serial.println("Wifi Started");
@@ -605,6 +606,10 @@ bool intersection(uint16_t nextTagId) {
         returnValue = true;
       } else {
         debugMessage = "Next tag not connected to this intersection";
+        Stop();
+        setLEDColor(LED_ORANGE);
+        delay(1000); 
+        setLEDColor(LED_OFF);
 
         returnValue = false;
       }
@@ -615,6 +620,8 @@ bool intersection(uint16_t nextTagId) {
   Serial.println(debugMessage);
   Serial.print("next id");
   Serial.println(nextTagId);
+  Serial.print("current ID");
+  Serial.println(tagId);
   Serial.println();
 #endif
 
@@ -641,12 +648,12 @@ void rfidTagAction() {
 
       } else if (sID == PIZZARIA_STATION_ID) {
         PizzariaStation = true;
-        break; 
+        break;
       }
-
       if (intersection(CurrentRoute[routeCounter])) {
         routeCounter++;
       }
+
       break;
     default:
       debugMessage = "Tag action Unknown";

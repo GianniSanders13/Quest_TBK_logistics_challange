@@ -278,7 +278,7 @@ void ConfirmSending(){
 //-------------------------------------Route connect--------------------------------------------------------
 void ConnectRoute(){
   if(Buf_1e_Station == 1 && Buf_2e_Station == 0 && Buf_3e_Station == 0){
-    Buf_Route = 8;
+    Buf_Route = 1;
   }
   if(Buf_1e_Station == 1 && Buf_2e_Station == 2 && Buf_3e_Station == 0){
     Buf_Route = 1;
