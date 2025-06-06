@@ -5,7 +5,7 @@
 
 // --------------------DEBUG --------------------------------------------------------
 
-#define DEBUG true              // Enable or disable all DEBUG prints
+#define DEBUG false              // Enable or disable all DEBUG prints
 #define DEBUG_RFID true         // RFID reader debug (what the readers received)
 #define DEBUG_RFID_CHECK false  // DEBUG print of de RFID tag id
 #define DEBUG_DRIVING false     // driving direct with sensor values.
@@ -57,12 +57,12 @@
 #define LEFT_PWM_CHANNEL 0
 #define RIGHT_PWM_CHANNEL 1
 
-// Parameter driving
-#define SPEED 220
+// Motor control settings
+#define SPEED 225
 #define NORMALADJUST 0
-#define STEERING_SPEED 220
-#define TURN_AROUND_DELAY 1150
-#define TURN_DELAY 550
+#define STEERING_SPEED 240
+#define TURN_AROUND_DELAY 1200
+#define TURN_DELAY 600
 
 #define DISTANCE_THRESHOLD_CM 20
 #define TRIG_PULSE_DURATION_US 10
