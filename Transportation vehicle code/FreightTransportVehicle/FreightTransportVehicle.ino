@@ -78,10 +78,13 @@
 
 // Delay how long takes the packets is picked up
 #define DELAY_1_Packets 2000
-#define DELAY_2_Packets 2500
-#define DELAY_3_Packets 3000
-#define DELAY_4_Packets 3500
-#define DELAY_5_Packets 4000
+#define DELAY_2_Packets 4000
+#define DELAY_3_Packets 6000
+#define DELAY_4_Packets 8000
+#define DELAY_5_Packets 10000
+#define DELAY_6_Packets 12000
+#define DELAY_7_Packets 14000
+#define DELAY_8_Packets 16000
 
 // RFID connection pins
 #define SCK_PIN 13   // Serial Clock (SCK)
@@ -124,6 +127,8 @@ typedef struct Message {
   uint8_t Data2;
   uint8_t Data3;
   uint8_t Data4;
+  uint8_t Data5;
+  uint8_t Data6;
   uint8_t End_Key;
 } Message;
 
@@ -142,6 +147,8 @@ uint8_t F_Station = 0;
 uint8_t F_Amount = 0;
 uint8_t S_Station = 0;
 uint8_t S_Amount = 0;
+uint8_t T_Station = 0;
+uint8_t T_Amount = 0;
 
 // ---------- Functieprototypes ----------
 // Callback voor ESP-NOW
@@ -266,6 +273,8 @@ void DecodeMessage() {
   F_Amount = StoredMessage.Data2;
   S_Station = StationDecode(StoredMessage.Data3);
   S_Amount = StoredMessage.Data4;
+  T_Station = StationDecode(StoredMessage.Data5);
+  T_Amount = StoredMessage.Data6;
 }
 
 // Format station input to RFID station tag id
@@ -351,6 +360,9 @@ void rfidTagAction() {
   }
   if (sID == S_Station) {
     stationAction(S_Amount);
+  }
+  if (sID == T_Station) {
+    stationAction(T_Amount);
   }
 
   if (sID == 7) {
